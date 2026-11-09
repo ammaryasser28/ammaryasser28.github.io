@@ -230,7 +230,7 @@ body.nav-collapsed .nav-me { justify-content: center; padding: 6px; }
 @keyframes halo { 0%, 100% { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--cobalt), 0 0 0 6px rgb(39 71 201 / .35); } 50% { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--cobalt), 0 0 0 16px rgb(39 71 201 / 0); } }
 
 /* ---------- pages ---------- */
-.page { max-width: 1240px; padding: 28px 12px 64px 0; }
+.page { max-width: 1480px; padding: 28px 12px 64px 0; }
 main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 
 /* welcome */
@@ -300,7 +300,14 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .chapter li a .c-title { flex: 1; }
 
 /* note page */
-.reader3 { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 40px; max-width: 1180px; padding: 20px 12px 0 0; }
+.reader3 { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; max-width: 1480px; padding: 20px 12px 0 0; align-items: start; }
+.reader3 .note { width: 100%; max-width: 1040px; margin: 0 auto; padding: 8px 36px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; }
+.reader3 .prose, .reader3 .pager { max-width: none; }
+.reader3 .note-head { border-bottom: 1px solid var(--rule); }
+.note[dir="rtl"] .note-head h1, .note[dir="rtl"] .crumbs, .note[dir="rtl"] .note-head .meta { text-align: right; }
+.note[dir="rtl"] .note-head h1 { font-family: "IBM Plex Sans", "IBM Plex Sans Arabic", var(--font); }
+.pager .next { text-align: end; }
+.reader3 .toc { padding: 18px; background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; }
 .reader3 .toc { top: calc(var(--top-h) + 28px); }
 .note-head { padding-top: 8px; }
 .read-chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 10px; border-radius: 99px; background: var(--paper); border: 1px solid var(--rule); }
@@ -314,23 +321,22 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .progress { top: 0; }
 
 /* ---------- interactive diagrams ---------- */
-.diagram { position: relative; margin: 22px 0; padding: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; text-align: left; }
-.dg-port { overflow: auto; max-height: 72vh; padding: 50px 18px 18px; text-align: center; overscroll-behavior: contain; scrollbar-width: thin; }
+.diagram { position: relative; margin: 26px 0; padding: 0; background: var(--art-bg); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; text-align: left; box-shadow: 0 18px 40px -32px rgb(20 32 46 / .5); }
+.diagram:hover { border-color: color-mix(in srgb, var(--cobalt) 45%, var(--rule)); }
+.dg-port { overflow: auto; max-height: 78vh; padding: 22px 18px; text-align: center; overscroll-behavior: contain; scrollbar-width: thin; }
 .dg-port svg { display: inline-block; max-width: none !important; transition: width .25s ease, height .25s ease; }
 .diagram.pannable .dg-port { cursor: grab; }
 .diagram.dragging .dg-port { cursor: grabbing; user-select: none; }
-.dg-bar {
-  position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 2px; padding: 3px;
-  background: color-mix(in srgb, var(--surface) 92%, transparent); border: 1px solid var(--rule); border-radius: 10px;
-  opacity: 0; transform: translateY(-4px); transition: opacity .2s, transform .2s;
-}
-.diagram:hover .dg-bar, .diagram:focus-within .dg-bar, .diagram:fullscreen .dg-bar { opacity: 1; transform: none; }
-@media (hover: none) { .dg-bar { opacity: 1; transform: none; } }
-.dg-bar button { width: 30px; height: 30px; border: 0; border-radius: 7px; background: none; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
-.dg-bar button:hover { background: var(--cobalt-soft); color: var(--cobalt); }
-.dg-bar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dg-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--rule); background: var(--paper); }
+.dg-title { display: flex; align-items: baseline; gap: 10px; font-weight: 600; font-size: 14px; color: var(--ink); min-width: 0; }
+.dg-title > svg { width: 16px; height: 16px; align-self: center; color: var(--cobalt); }
+.dg-title small { font-weight: 400; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dg-tools { display: flex; align-items: center; gap: 2px; flex: none; }
+.dg-tools button { width: 30px; height: 30px; border: 0; border-radius: 7px; background: none; color: var(--ink); display: grid; place-items: center; cursor: pointer; }
+.dg-tools button:hover { background: var(--cobalt-soft); color: var(--cobalt); }
+.dg-tools svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dg-zoom { font: 500 12px var(--mono); color: var(--muted); padding: 0 6px; min-width: 44px; text-align: center; }
-.diagram:fullscreen { background: var(--paper); border-radius: 0; display: flex; }
+.diagram:fullscreen { background: var(--paper); border-radius: 0; display: flex; flex-direction: column; }
 .diagram:fullscreen .dg-port { max-height: none; flex: 1; display: grid; place-items: center; }
 
 /* draw-in */
@@ -378,6 +384,8 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
   .theme { width: 36px; height: 36px; }
   .me-chip { padding: 3px; }
   .page, .reader3 { padding: 20px 16px 56px; }
+  .reader3 .note { padding: 4px 16px 0; border-radius: 16px; }
+  .dg-title small { display: none; }
   .welcome-me { flex-direction: column; text-align: center; padding: 24px 18px; }
   .actions { justify-content: center; }
   .continue-card { grid-template-columns: 1fr auto; }
@@ -399,3 +407,44 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
   .pick, .course { transform: none !important; }
   .avatar.xl { animation: none; }
 }
+
+/* ---------- motion polish ---------- */
+@property --ang { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+.welcome-me { position: relative; isolation: isolate; overflow: hidden; }
+.welcome-me::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; z-index: -1; pointer-events: none;
+  background: conic-gradient(from var(--ang), transparent 0 70%, var(--cobalt) 82%, #7fa0ff 88%, transparent 96%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: orbit 6s linear infinite;
+}
+.welcome-me::after {
+  content: ""; position: absolute; width: 380px; height: 380px; right: -140px; top: -160px; z-index: -2; border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--cobalt) 22%, transparent), transparent 65%);
+  animation: drift 12s ease-in-out infinite alternate;
+}
+@keyframes orbit { to { --ang: 360deg; } }
+@keyframes drift { to { transform: translate(-120px, 90px) scale(1.15); } }
+.stat-ico, .panel-ico { transition: transform .35s cubic-bezier(.3,1.5,.5,1); }
+.stat:hover .stat-ico, .panel:hover .panel-ico { transform: scale(1.12) rotate(-6deg); }
+.sidenav { animation: nav-in .5s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes nav-in { from { opacity: 0; transform: translateX(-16px); } }
+.nav-item, .tree-item { animation: item-in .4s cubic-bezier(.2,.7,.2,1) both; }
+.nav-scroll > :nth-child(n) { animation-delay: calc(var(--k, 0) * 1ms); }
+@keyframes item-in { from { opacity: 0; transform: translateX(-8px); } }
+.tree-item:hover { transform: translateX(3px); }
+.tree-item { transition: background .2s, transform .2s; }
+.prose .reveal { transform: translateY(14px); }
+.prose h2.reveal.in::after { content: ""; display: block; height: 2px; width: 56px; margin-top: 8px; border-radius: 2px; background: var(--cobalt); animation: grow-x .6s .15s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes grow-x { from { width: 0; } }
+.toc a { transition: color .2s, border-color .2s, padding .2s; }
+.toc a.on { padding-inline-start: 16px; }
+.course-head-art, .note-art { animation: art-in .7s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes art-in { from { opacity: 0; transform: scale(.97); } }
+@media (prefers-reduced-motion: reduce) {
+  .welcome-me::before, .welcome-me::after, .sidenav, .nav-item, .tree-item, .course-head-art, .note-art { animation: none; }
+}
+/* keep English bits readable inside Arabic notes */
+.note-head .meta > *, .note-head .crumbs a { unicode-bidi: isolate; }
+.read-chip { direction: ltr; }
+.toc a { unicode-bidi: plaintext; }
+.toc ol[dir="rtl"] a { text-align: right; }
