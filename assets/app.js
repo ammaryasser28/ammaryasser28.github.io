@@ -61,7 +61,7 @@
     notes: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
   };
   const ic = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name]}</svg>`;
-  const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Amr Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">AY</span></span>`;
+  const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Bn Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">BY</span></span>`;
 
   /* ---------- shell: sidebar ---------- */
   function renderNav() {
@@ -71,7 +71,7 @@
     const onHome = !cur;
     navEl.innerHTML = `
       <div class="nav-top">
-        <a class="brand" href="./">${V.monogram()}<span class="brand-text">Blue Team Notes<small>by Amr Yasser</small></span></a>
+        <a class="brand" href="./">${V.monogram()}<span class="brand-text">Blue Team Notes<small>by Bn Yasser</small></span></a>
         <button class="collapse" type="button" aria-label="Collapse the sidebar" title="Collapse the sidebar">${ic('chev')}</button>
       </div>
       <nav class="nav-scroll" aria-label="Site">
@@ -99,7 +99,7 @@
         <a class="nav-item" href="https://github.com/ammaryasser28" rel="noopener" target="_blank">${ic('github')}<span>GitHub</span></a>
         <a class="nav-item" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener" target="_blank">${ic('linkedin')}<span>LinkedIn</span></a>
       </nav>
-      <a class="nav-me" href="./#about">${avatar('sm')}<span><b>Amr Yasser</b><small>SOC Analyst</small></span></a>`;
+      <a class="nav-me" href="./#about">${avatar('sm')}<span><b>Bn Yasser</b><small>SOC Analyst</small></span></a>`;
     navEl.querySelector('.collapse').addEventListener('click', () => {
       const c = document.body.classList.toggle('nav-collapsed');
       store.set('collapsed', c);
@@ -157,7 +157,7 @@
     if (p.get('t')) return renderMissing();
     renderHome();
   }
-  function setTitle(s) { document.title = s ? `${s} | Amr Yasser` : 'Amr Yasser | Blue Team Notes'; }
+  function setTitle(s) { document.title = s ? `${s} | Bn Yasser` : 'Bn Yasser | Blue Team Notes'; }
 
   /* ---------- home ---------- */
   const PICKS = [
@@ -192,15 +192,15 @@
           ${avatar('xl')}
           <div class="welcome-text">
             <p class="hello">Welcome, I'm</p>
-            <h1>Amr Yasser</h1>
-            <p class="role">SOC Analyst and Cybersecurity Mentor at Route Academy</p>
+            <h1>Bn Yasser</h1>
+            <p class="role">SOC Analyst</p>
             <p class="ar" dir="rtl" lang="ar">ملاحظات البلو تيم، مشروحة بالعربي.</p>
-            <p class="bio">${total} notes from four security courses, from networking basics to SANS SEC450. I build hands-on SOC labs for diploma students and write up everything I study.</p>
+            <p class="bio">${total} notes from four security courses, from networking basics to SANS SEC450. I build hands-on SOC labs and write up everything I study, so it can be read again before an investigation or an interview.</p>
             <div class="actions">
               <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
               <a class="btn" href="https://github.com/ammaryasser28" target="_blank" rel="noopener">${ic('github')}GitHub</a>
               <a class="btn" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" target="_blank" rel="noopener">${ic('linkedin')}LinkedIn</a>
-              <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Email Amr">${ic('mail')}</a>
+              <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Send an email">${ic('mail')}</a>
             </div>
           </div>
         </div>
@@ -495,6 +495,9 @@
       prose.setAttribute('dir', dir);
       prose.setAttribute('lang', dir === 'rtl' ? 'ar' : 'en');
       prose.replaceChildren(...box.childNodes);
+      main.querySelector('article.note').setAttribute('dir', dir);
+      prose.querySelectorAll(':scope > h2, :scope > h3, :scope > .table, :scope > .diagram, :scope > blockquote, :scope > pre, :scope > ul, :scope > ol').forEach((el) => el.classList.add('reveal'));
+      V.reveal(prose);
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       spy();
       drawDiagrams(prose);
@@ -540,10 +543,24 @@
         fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif',
         flowchart: { htmlLabels: true, useMaxWidth: true },
       });
+      const LR = /^(\s*(?:flowchart|graph)\s+)(LR|RL)\b/im;
       for (const n of nodes) {
         if (!n.isConnected) return;
-        try { await mm.run({ nodes: [n] }); V.diagram(n.closest('.diagram')); }
-        catch (e) { n.closest('.diagram')?.classList.add('as-code'); }
+        const fig = n.closest('.diagram');
+        const src = n.textContent;
+        try {
+          await mm.run({ nodes: [n] });
+          // a long left-to-right chain becomes unreadable when squeezed; draw it top-to-bottom instead
+          const w = n.querySelector('svg')?.viewBox?.baseVal?.width || 0;
+          if (LR.test(src) && w > (fig.clientWidth - 36) * 1.3) {
+            const fresh = document.createElement('pre');
+            fresh.className = 'mermaid';
+            fresh.textContent = src.replace(LR, '$1TB');
+            n.replaceWith(fresh);
+            await mm.run({ nodes: [fresh] });
+          }
+          V.diagram(fig);
+        } catch (e) { fig?.classList.add('as-code'); }
       }
     } catch (e) {
       nodes.forEach((n) => n.closest('.diagram')?.classList.add('as-code'));
