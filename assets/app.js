@@ -2,59 +2,139 @@
   'use strict';
 
   const main = document.getElementById('main');
+  const navEl = document.getElementById('nav');
   const RAW = 'https://raw.githubusercontent.com';
-  let DATA = null;           // manifest
-  let INDEX = [];            // flat list of notes for search
+  const PHOTO = 'https://github.com/ammaryasser28.png?size=240';
+  let DATA = null;
+  let INDEX = [];
   const noteCache = new Map();
+  const V = window.Visuals;
 
   /* ---------- helpers ---------- */
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const enc = (path) => path.split('/').map(encodeURIComponent).join('/');
   const minutes = (w) => Math.max(1, Math.round(w / 200));
-  const hasArabic = (s) => /[\u0600-\u06FF]/.test(s);
   const trackBy = (slug) => DATA.tracks.find((t) => t.slug === slug);
   const noteHref = (t, path) => `?t=${t.slug}&n=${encodeURIComponent(path)}`;
   const flatNotes = (t) => t.sections.flatMap((s) => s.notes.map((n) => ({ ...n, section: s.name })));
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- reading progress, kept in this browser ---------- */
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem('btn:' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem('btn:' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
+  };
+  const readSet = new Set(store.get('read', []));
+  const key = (t, path) => `${t.slug}|${path}`;
+  const isRead = (t, path) => readSet.has(key(t, path));
+  const readCount = (t) => flatNotes(t).filter((n) => isRead(t, n.path)).length;
+  function markRead(t, path) {
+    if (isRead(t, path)) return;
+    readSet.add(key(t, path));
+    store.set('read', [...readSet]);
+    renderNav();
+    const chip = document.getElementById('read-chip');
+    if (chip) { chip.textContent = 'Read'; chip.classList.add('done', 'pop'); }
+  }
 
   function buildIndex() {
     INDEX = DATA.tracks.flatMap((t) => flatNotes(t).map((n) => ({
-      track: t, note: n,
-      hay: [n.title, n.section, ...n.sub, t.name].join(' ').toLowerCase(),
+      track: t, note: n, hay: [n.title, n.section, ...n.sub, t.name].join(' ').toLowerCase(),
     })));
   }
+
+  /* ---------- icons ---------- */
+  const I = {
+    home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/>',
+    star: '<path d="m12 4 2.4 5 5.4.6-4 3.7 1.1 5.4L12 16l-4.9 2.7 1.1-5.4-4-3.7 5.4-.6z"/>',
+    search: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5"/>',
+    github: '<path d="M9 19c-4 1.3-4-2-6-2.5M15 21v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6 0 0 0-1.3-3.2 4.2 4.2 0 0 0-.1-3.2s-1.1-.3-3.5 1.3a12 12 0 0 0-6.2 0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2 0 0 0-.1 3.2A4.6 4.6 0 0 0 4 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/>',
+    linkedin: '<path d="M4 9h3v11H4zM5.5 4.2a1.6 1.6 0 1 1 0 3.2 1.6 1.6 0 0 1 0-3.2zM10 9h3v1.6c.6-1 1.7-1.8 3.3-1.8 3 0 3.7 2 3.7 4.6V20h-3v-5.8c0-1.4-.3-2.6-1.8-2.6s-2.2 1.1-2.2 2.6V20h-3z"/>',
+    mail: '<path d="M3 6h18v12H3z"/><path d="m3 7 9 6 9-6"/>',
+    book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5"/>',
+    check: '<path d="m5 12 4.5 4.5L19 7"/>',
+    chev: '<path d="m15 6-6 6 6 6"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    clock: '<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
+    diagram: '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/>',
+    notes: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+  };
+  const ic = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name]}</svg>`;
+  const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Amr Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">AY</span></span>`;
+
+  /* ---------- shell: sidebar ---------- */
+  function renderNav() {
+    if (!DATA) return;
+    const p = new URLSearchParams(location.search);
+    const cur = p.get('t'), curNote = p.get('n');
+    const onHome = !cur;
+    navEl.innerHTML = `
+      <div class="nav-top">
+        <a class="brand" href="./">${V.monogram()}<span class="brand-text">Blue Team Notes<small>by Amr Yasser</small></span></a>
+        <button class="collapse" type="button" aria-label="Collapse the sidebar" title="Collapse the sidebar">${ic('chev')}</button>
+      </div>
+      <nav class="nav-scroll" aria-label="Site">
+        <p class="nav-label">Main</p>
+        <a class="nav-item${onHome ? ' active' : ''}" href="./">${ic('home')}<span>Dashboard</span></a>
+        <a class="nav-item" href="./#picks">${ic('star')}<span>Start here</span></a>
+        <button class="nav-item" type="button" data-focus-search>${ic('search')}<span>Search notes</span><kbd>/</kbd></button>
+        <p class="nav-label">Courses</p>
+        ${DATA.tracks.map((t, i) => {
+          const done = readCount(t), pct = Math.round((done / t.count) * 100);
+          const open = t.slug === cur;
+          return `
+          <a class="nav-item course-item${open ? ' active' : ''}" href="?t=${t.slug}" title="${esc(t.name)}">
+            <span class="num">${i + 1}</span>
+            <span class="ci-text"><span>${esc(t.name)}</span><span class="mini-bar"><i style="width:${pct}%"></i></span></span>
+            <span class="ci-count">${done}/${t.count}</span>
+          </a>
+          ${open ? `<div class="tree">${t.sections.map((s) => `
+            <p class="tree-sec">${esc(s.name)}</p>
+            ${s.notes.map((n) => `<a class="tree-item${n.path === curNote ? ' current' : ''}${isRead(t, n.path) ? ' read' : ''}" href="${noteHref(t, n.path)}">
+              <span class="dot">${ic('check', 'tick')}</span><span>${esc([...n.sub, n.title].join(' / '))}</span></a>`).join('')}`).join('')}
+          </div>` : ''}`;
+        }).join('')}
+        <p class="nav-label">Explore</p>
+        <a class="nav-item" href="https://github.com/ammaryasser28" rel="noopener" target="_blank">${ic('github')}<span>GitHub</span></a>
+        <a class="nav-item" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener" target="_blank">${ic('linkedin')}<span>LinkedIn</span></a>
+      </nav>
+      <a class="nav-me" href="./#about">${avatar('sm')}<span><b>Amr Yasser</b><small>SOC Analyst</small></span></a>`;
+    navEl.querySelector('.collapse').addEventListener('click', () => {
+      const c = document.body.classList.toggle('nav-collapsed');
+      store.set('collapsed', c);
+    });
+    navEl.querySelector('[data-focus-search]').addEventListener('click', () => { closeNav(); document.getElementById('q').focus(); });
+    const curItem = navEl.querySelector('.tree-item.current');
+    if (curItem) curItem.scrollIntoView({ block: 'center' });
+  }
+  if (store.get('collapsed', false)) document.body.classList.add('nav-collapsed');
+  const closeNav = () => document.body.classList.remove('nav-open');
+  document.getElementById('menu').addEventListener('click', () => document.body.classList.toggle('nav-open'));
+  document.getElementById('scrim').addEventListener('click', closeNav);
 
   /* ---------- theme ---------- */
   document.querySelector('.theme').addEventListener('click', () => {
     const root = document.documentElement;
-    const cur = root.getAttribute('data-theme') ||
-      (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    const next = cur === 'dark' ? 'light' : 'dark';
+    const curT = root.getAttribute('data-theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = curT === 'dark' ? 'light' : 'dark';
     root.setAttribute('data-theme', next);
     try { localStorage.setItem('theme', next); } catch (e) { /* storage unavailable */ }
     if (DATA && new URLSearchParams(location.search).get('n') && document.querySelector('.diagram')) {
-      const y = scrollY; route(); setTimeout(() => scrollTo(0, y), 50);
+      const y = scrollY; route(); setTimeout(() => scrollTo(0, y), 60);
     }
   });
 
   /* ---------- routing ---------- */
-  function go(href, push = true) {
-    const url = new URL(href, location.href);
-    if (push) history.pushState({}, '', url);
-    route();
-  }
+  function go(href) { history.pushState({}, '', new URL(href, location.href)); route(); }
   document.addEventListener('click', (e) => {
     const a = e.target.closest('a');
-    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || a.target === '_blank') return;
     const url = new URL(a.href, location.href);
     if (url.origin !== location.origin || url.pathname !== location.pathname) return;
-    // same page: in-page anchor
-    if (url.search === location.search && url.hash) {
-      e.preventDefault();
-      scrollToHash(url.hash);
-      history.replaceState({}, '', url);
-      return;
-    }
     e.preventDefault();
+    closeNav();
+    if (url.search === location.search && url.hash) { scrollToHash(url.hash); history.replaceState({}, '', url); return; }
     go(url.href);
   });
   addEventListener('popstate', () => route());
@@ -63,93 +143,132 @@
     if (!hash) return;
     let id = hash.slice(1);
     try { id = decodeURIComponent(id); } catch (e) { /* keep raw */ }
-    const el = document.getElementById(id) || document.getElementById(id.toLowerCase());
-    if (el) el.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
   }
 
   function route() {
     const p = new URLSearchParams(location.search);
     const t = p.get('t') && trackBy(p.get('t'));
     const n = p.get('n');
+    renderNav();
     if (t && n) return renderNote(t, n);
     if (t) return renderTrack(t);
     if (p.get('t')) return renderMissing();
     renderHome();
   }
-
   function setTitle(s) { document.title = s ? `${s} | Amr Yasser` : 'Amr Yasser | Blue Team Notes'; }
 
   /* ---------- home ---------- */
+  const PICKS = [
+    { t: 'sec450', n: '450.3 - Understanding Hosts, Logs, and Files/Interpreting Important Events.md', icon: 'log', hook: 'The Windows and Linux events an analyst reads every shift: 4624, 4625, 4688, 7045 and Kerberos.' },
+    { t: 'essentials', n: 'Security Framework/MITRE ATT&CK Framework.md', icon: 'grid', hook: 'Tactics, techniques and procedures, and how the matrix describes a real intrusion.' },
+    { t: 'essentials', n: 'Pyramid of Pain.md', icon: 'pyramid', hook: 'Why blocking a hash barely slows an attacker down, and blocking their behaviour does.' },
+    { t: 'essentials', n: 'Security Framework/Cyber Kill Chain.md', icon: 'chain', hook: 'The seven phases of an attack and where a SOC can break the chain.' },
+    { t: 'sec450', n: '450.1 - Blue Team Tools and Operation /SIEM and Automation.md', icon: 'siem', hook: 'What a SIEM collects, how correlation turns events into alerts, and where automation helps.' },
+    { t: 'essentials', n: 'Log-Analysis-and-Digital-Forensics/impossible-travel-and-vpn-detection.md', icon: 'globe', hook: 'One account logging in from two countries an hour apart, and how to rule out the VPN.' },
+    { t: 'intro', n: 'DNS/DNS Sinkhole.md', icon: 'sink', hook: 'Redirecting malicious domains to a safe address so infected hosts reveal themselves.' },
+    { t: 'essentials', n: 'SOC Analyst Fundamentals.md', icon: 'radar', hook: 'The tiers, the alert queue and the daily work of a SOC analyst.' },
+  ];
+  const pickList = () => PICKS.map((p) => ({ ...p, track: trackBy(p.t) }))
+    .filter((p) => p.track && flatNotes(p.track).some((x) => x.path === p.n))
+    .map((p) => ({ ...p, note: flatNotes(p.track).find((x) => x.path === p.n) }));
+
   function renderHome() {
     setTitle('');
     const total = DATA.tracks.reduce((a, t) => a + t.count, 0);
+    const hours = Math.round(DATA.tracks.reduce((a, t) => a + t.words, 0) / 200 / 60);
+    const readTotal = DATA.tracks.reduce((a, t) => a + readCount(t), 0);
+    const picks = pickList();
+    const last = store.get('last', null);
+    const lastT = last && trackBy(last.t);
+    const lastN = lastT && flatNotes(lastT).find((n) => n.path === last.n);
+    const next = lastN ? { t: lastT, n: lastN } : { t: picks[0].track, n: picks[0].note };
+
     main.innerHTML = `
-    <div class="wrap">
-      <section class="hero">
-        <div class="hero-lines">
-          <h1>Blue team notes, explained in Arabic.</h1>
-          <p class="ar" dir="rtl" lang="ar">ملاحظات البلو تيم، مشروحة بالعربي.</p>
+    <div class="page home3">
+      <section class="welcome reveal" id="about">
+        <div class="welcome-me">
+          ${avatar('xl')}
+          <div class="welcome-text">
+            <p class="hello">Welcome, I'm</p>
+            <h1>Amr Yasser</h1>
+            <p class="role">SOC Analyst and Cybersecurity Mentor at Route Academy</p>
+            <p class="ar" dir="rtl" lang="ar">ملاحظات البلو تيم، مشروحة بالعربي.</p>
+            <p class="bio">${total} notes from four security courses, from networking basics to SANS SEC450. I build hands-on SOC labs for diploma students and write up everything I study.</p>
+            <div class="actions">
+              <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
+              <a class="btn" href="https://github.com/ammaryasser28" target="_blank" rel="noopener">${ic('github')}GitHub</a>
+              <a class="btn" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" target="_blank" rel="noopener">${ic('linkedin')}LinkedIn</a>
+              <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Email Amr">${ic('mail')}</a>
+            </div>
+          </div>
         </div>
-        <div class="hero-sub">
-          <p><strong>${total} notes from four security courses</strong>, from networking basics to SANS SEC450, written by Amr Yasser while training as a SOC analyst.</p>
-          <p>The explanations are in Egyptian Arabic. Every term, command and Event ID stays in English, so the notes read the way the work is done.</p>
-        </div>
-        ${searchBox()}
+        <div class="welcome-art">${V.heroArt()}</div>
       </section>
 
-      <div class="section-head" id="courses">
-        <h2>Read them in order</h2>
-        <p>Each course builds on the one before it.</p>
-      </div>
-      <ol class="path">
-        ${DATA.tracks.map((t, i) => `
-          <li><a href="?t=${t.slug}">
-            <span class="step" aria-hidden="true">${i + 1}</span>
-            <div>
-              <h3>${esc(t.name)}</h3>
-              <span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span>
-              <p class="blurb">${esc(t.blurb)}</p>
-              ${t.status ? `<span class="status">${esc(t.status)}</span>` : ''}
-            </div>
-            <div class="count"><b>${t.count}</b><span>notes</span></div>
-          </a></li>`).join('')}
-      </ol>
+      <section class="stat-row" aria-label="Site at a glance">
+        ${[['notes', 'Notes', total], ['layers', 'Courses', DATA.tracks.length], ['diagram', 'Diagrams', 658], ['clock', 'Hours of reading', hours]].map(([i, l, v], k) => `
+          <div class="stat reveal" style="--d:${k}"><span class="stat-ico">${ic(i)}</span><span><small>${l}</small><b data-count="${v}">${v}</b></span></div>`).join('')}
+      </section>
 
-      <section class="about" id="about">
-        <div>
-          <h2>About</h2>
-          <p>I'm Amr Yasser, a SOC analyst and a cybersecurity mentor at Route Academy, where I design hands-on lab workshops for diploma students.</p>
-          <p>These notes cover the courses I studied on the way to the SOC: each topic rewritten in my own words, organised so it can be revised quickly before an investigation or an interview.</p>
+      <section class="duo">
+        <div class="panel reveal continue">
+          <div class="panel-head"><span class="panel-ico">${ic('book')}</span><div><h2>${lastN ? 'Continue where you stopped' : 'Where to begin'}</h2><p>${lastN ? 'Your last note in this browser' : 'The note most analysts reach for first'}</p></div></div>
+          <a class="continue-card" href="${noteHref(next.t, next.n.path)}">
+            <span class="cc-art">${V.courseArt(next.t.slug)}</span>
+            <span class="cc-text"><small>${esc(next.t.name)} / ${esc(next.n.section)}</small><b>${esc(next.n.title)}</b><span>${minutes(next.n.words)} min read</span></span>
+            <span class="cc-go">${ic('chev')}</span>
+          </a>
         </div>
-        <ul>
-          <li><a href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener">LinkedIn</a><span>Experience and contact</span></li>
-          <li><a href="https://github.com/ammaryasser28" rel="noopener">GitHub</a><span>Source of every note</span></li>
-          <li><a href="mailto:amry02077@gmail.com">amry02077@gmail.com</a><span>Email</span></li>
-        </ul>
+        <div class="panel reveal progress-panel" style="--d:1">
+          <div class="panel-head"><span class="panel-ico">${ic('check')}</span><div><h2>Your progress</h2><p>${readTotal ? `${readTotal} of ${total} notes read` : 'Notes you finish are ticked off here'}</p></div></div>
+          <ul class="bars">${DATA.tracks.map((t) => { const d = readCount(t), pct = Math.round((d / t.count) * 100); return `
+            <li><a href="?t=${t.slug}"><span class="bar-top"><span>${esc(t.name)}</span><span>${d}/${t.count}</span></span><span class="pbar"><i style="--w:${pct}%"></i></span></a></li>`; }).join('')}</ul>
+          <p class="fine">Saved in this browser only.</p>
+        </div>
+      </section>
+
+      <section class="block" id="picks" aria-labelledby="picks-h">
+        <div class="section-head reveal"><h2 id="picks-h">Start here</h2><p>Eight notes worth reading first.</p></div>
+        <div class="picks">
+          ${picks.map((p, i) => `
+            <a class="pick tilt reveal${isRead(p.track, p.n) ? ' is-read' : ''}" style="--d:${i % 4}" href="${noteHref(p.track, p.n)}">
+              <span class="pick-ico">${V.icon(p.icon)}</span>
+              <span class="pick-course">${esc(p.track.name)}</span>
+              <strong>${esc(p.note.title)}</strong>
+              <span class="pick-hook">${esc(p.hook)}</span>
+              <span class="pick-time">${isRead(p.track, p.n) ? `${ic('check')}Read` : `${minutes(p.note.words)} min read`}</span>
+            </a>`).join('')}
+        </div>
+      </section>
+
+      <section class="block" id="courses" aria-labelledby="courses-h">
+        <div class="section-head reveal"><h2 id="courses-h">Courses, in reading order</h2><p>Each one builds on the one before it.</p></div>
+        <ol class="courses">
+          ${DATA.tracks.map((t, i) => { const d = readCount(t); return `
+            <li class="reveal" style="--d:${i}"><a class="course tilt" href="?t=${t.slug}">
+              <div class="course-visual">${V.courseArt(t.slug)}<span class="course-step">${i + 1}</span></div>
+              <div class="course-body">
+                <h3>${esc(t.name)}</h3>
+                <span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span>
+                <p>${esc(t.blurb)}</p>
+                <span class="pbar thin"><i style="--w:${Math.round((d / t.count) * 100)}%"></i></span>
+                <div class="course-meta"><span><b>${d}</b> of ${t.count} read</span><span>About ${Math.round(t.words / 200 / 60)} hours</span>${t.status ? '<span class="status">In progress</span>' : ''}</div>
+              </div>
+            </a></li>`; }).join('')}
+        </ol>
       </section>
     </div>`;
-    wireSearch();
-    if (location.hash) scrollToHash(location.hash); else scrollTo(0, 0);
+    V.enhance(main);
+    if (location.hash) setTimeout(() => scrollToHash(location.hash), 50); else scrollTo(0, 0);
   }
 
-  /* ---------- search ---------- */
-  function searchBox() {
-    return `
-      <div class="search" role="search">
-        <label for="q">Find a note by topic</label>
-        <input id="q" type="search" autocomplete="off" spellcheck="false"
-          placeholder="Try Kerberos, DNS tunneling, or Event ID"
-          role="combobox" aria-expanded="false" aria-controls="results" aria-autocomplete="list">
-        <kbd aria-hidden="true">/</kbd>
-        <ul class="results" id="results" role="listbox" hidden></ul>
-      </div>`;
-  }
-
-  function wireSearch() {
+  /* ---------- search (top bar, every page) ---------- */
+  (function wireSearch() {
     const input = document.getElementById('q');
     const list = document.getElementById('results');
     let hits = [], sel = -1;
-
     const mark = (text, words) => {
       let out = esc(text);
       words.forEach((w) => {
@@ -159,18 +278,16 @@
       });
       return out;
     };
-
     const draw = () => {
       const q = input.value.trim().toLowerCase();
-      if (!q) { list.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
+      if (!q || !DATA) { list.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
       const words = q.split(/\s+/);
       hits = INDEX.filter((x) => words.every((w) => x.hay.includes(w)))
-        .sort((a, b) => (b.note.title.toLowerCase().includes(q) - a.note.title.toLowerCase().includes(q)))
-        .slice(0, 12);
+        .sort((a, b) => (b.note.title.toLowerCase().includes(q) - a.note.title.toLowerCase().includes(q))).slice(0, 10);
       sel = hits.length ? 0 : -1;
       list.innerHTML = hits.length
-        ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}">
-            <a href="${noteHref(h.track, h.note.path)}">${mark(h.note.title, words)}
+        ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}"><a href="${noteHref(h.track, h.note.path)}">
+            <span class="r-title">${mark(h.note.title, words)}${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
             <small>${esc(h.track.name)} / ${esc(h.note.section)}</small></a></li>`).join('')
         : `<li class="none">No note title matches "${esc(input.value.trim())}". Try a shorter word, like "DNS" or "hash".</li>`;
       list.hidden = false;
@@ -182,75 +299,61 @@
       sel = (sel + d + hits.length) % hits.length;
       [...list.children].forEach((li, i) => li.setAttribute('aria-selected', i === sel));
       input.setAttribute('aria-activedescendant', `r${sel}`);
-      list.children[sel].scrollIntoView({ block: 'nearest' });
     };
-
     input.addEventListener('input', draw);
+    input.addEventListener('focus', draw);
     input.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-      else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); go(noteHref(hits[sel].track, hits[sel].note.path)); }
-      else if (e.key === 'Escape') { input.value = ''; draw(); }
+      else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); list.hidden = true; input.blur(); go(noteHref(hits[sel].track, hits[sel].note.path)); }
+      else if (e.key === 'Escape') { input.value = ''; draw(); input.blur(); }
     });
-    document.addEventListener('click', (e) => { if (!e.target.closest('.search')) list.hidden = true; });
-  }
-  document.addEventListener('keydown', (e) => {
-    const q = document.getElementById('q');
-    if (e.key === '/' && q && document.activeElement !== q && !/input|textarea/i.test(document.activeElement.tagName)) {
-      e.preventDefault(); q.focus();
-    }
-  });
+    list.addEventListener('click', () => { list.hidden = true; input.value = ''; });
+    document.addEventListener('click', (e) => { if (!e.target.closest('.top-search')) list.hidden = true; });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== input && !/input|textarea/i.test(document.activeElement.tagName)) { e.preventDefault(); input.focus(); }
+    });
+  })();
 
-  /* ---------- course ---------- */
+  /* ---------- course page ---------- */
   function renderTrack(t) {
     setTitle(t.name);
+    const d = readCount(t);
     main.innerHTML = `
-    <div class="wrap">
-      <p class="crumbs"><a href="./">Home</a> / Courses</p>
-      <header class="course-head">
+    <div class="page">
+      <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
+      <header class="course-head with-art reveal">
+        <div class="course-head-art">${V.courseArt(t.slug)}</div>
         <h1>${esc(t.name)}<span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span></h1>
         <p>${esc(t.blurb)}</p>
         <div class="meta">
-          <span>${t.count} notes</span>
+          <span class="pbar wide"><i style="--w:${Math.round((d / t.count) * 100)}%"></i></span>
+          <span>${d} of ${t.count} notes read</span>
           <span>About ${Math.round(t.words / 200 / 60)} hours of reading</span>
           ${t.status ? `<span>${esc(t.status)}</span>` : ''}
-          <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener">View the repository</a>
+          <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener" target="_blank">View the repository</a>
         </div>
       </header>
       <div class="chapters">
-        ${t.sections.map((s) => `
-          <section class="chapter">
-            <h2>${esc(s.name)}</h2>
+        ${t.sections.map((s, i) => `
+          <section class="chapter reveal" style="--d:${i % 3}">
+            <h2>${esc(s.name)}<small>${s.notes.filter((n) => isRead(t, n.path)).length}/${s.notes.length}</small></h2>
             <ol>${s.notes.map((n) => `
-              <li><a href="${noteHref(t, n.path)}"><span>${n.sub.length ? `<span class="sub">${esc(n.sub.join(' / '))} / </span>` : ''}${esc(n.title)}</span>
+              <li><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}"><span class="dot">${ic('check', 'tick')}</span><span class="c-title">${n.sub.length ? `<span class="sub">${esc(n.sub.join(' / '))} / </span>` : ''}${esc(n.title)}</span>
               ${n.words ? `<small>${minutes(n.words)} min</small>` : ''}</a></li>`).join('')}
             </ol>
           </section>`).join('')}
       </div>
     </div>`;
+    V.enhance(main);
     scrollTo(0, 0);
   }
 
-  /* ---------- note ---------- */
-  function sideNav(t, current) {
-    return `
-      <aside class="side" id="side">
-        <button class="side-toggle" type="button" aria-expanded="false" aria-controls="side-nav">${esc(t.name)}: all ${t.count} notes</button>
-        <nav id="side-nav" aria-label="${esc(t.name)} notes">
-          <a class="course-link" href="?t=${t.slug}">${esc(t.name)}<small>${t.count} notes</small></a>
-          ${t.sections.map((s) => `
-            <h2>${esc(s.name)}</h2>
-            <ol>${s.notes.map((n) => `<li><a href="${noteHref(t, n.path)}"${n.path === current ? ' aria-current="page"' : ''}>${esc([...n.sub, n.title].join(' / '))}</a></li>`).join('')}</ol>`).join('')}
-        </nav>
-      </aside>`;
-  }
-
+  /* ---------- note page ---------- */
   function slugger() {
     const seen = new Map();
     return (text) => {
-      let s = text.trim().toLowerCase()
-        .replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '')
-        .replace(/\s/g, '-');
+      const s = text.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s_-]/gu, '').replace(/\s/g, '-');
       const c = seen.get(s);
       seen.set(s, c === undefined ? 0 : c + 1);
       return c === undefined ? s : `${s}-${c + 1}`;
@@ -262,9 +365,7 @@
     box.innerHTML = html;
     const slug = slugger();
     const dirBase = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
-
     box.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach((h) => { h.id = slug(h.textContent); });
-    // drop the note's own hand-written table of contents: the page builds one from the headings
     box.querySelectorAll('h2,h3').forEach((h) => {
       if (/^(table of contents|contents|الفهرس|المحتويات|فهرس المحتويات)$/i.test(h.textContent.trim())) {
         let next = h.nextElementSibling;
@@ -275,11 +376,7 @@
         h.remove();
       }
     });
-    box.querySelectorAll('table').forEach((tb) => {
-      const wrap = document.createElement('div'); wrap.className = 'table';
-      tb.replaceWith(wrap); wrap.appendChild(tb);
-    });
-    // GitHub alert syntax: > [!NOTE], > [!TIP], > [!WARNING] ...
+    box.querySelectorAll('table').forEach((tb) => { const w = document.createElement('div'); w.className = 'table'; tb.replaceWith(w); w.appendChild(tb); });
     const LABEL = { NOTE: 'Note', TIP: 'Tip', IMPORTANT: 'Important', WARNING: 'Warning', CAUTION: 'Caution' };
     box.querySelectorAll('blockquote').forEach((bq) => {
       const p = bq.querySelector('p');
@@ -290,11 +387,11 @@
       p.innerHTML = p.innerHTML.slice(m[0].length);
       if (!p.textContent.trim()) p.remove();
       bq.classList.add('callout', kind.toLowerCase());
-      const t = document.createElement('p'); t.className = 'callout-title'; t.textContent = LABEL[kind];
-      bq.prepend(t);
+      const tt = document.createElement('p'); tt.className = 'callout-title'; tt.textContent = LABEL[kind];
+      bq.prepend(tt);
     });
     box.querySelectorAll('pre > code.language-mermaid').forEach((code) => {
-      const fig = document.createElement('div');
+      const fig = document.createElement('figure');
       fig.className = 'diagram'; fig.setAttribute('dir', 'ltr');
       const src = document.createElement('pre');
       src.className = 'mermaid'; src.textContent = code.textContent;
@@ -302,7 +399,6 @@
       code.parentElement.replaceWith(fig);
     });
     box.querySelectorAll('pre').forEach((pre) => pre.setAttribute('dir', 'ltr'));
-
     box.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
       if (src && !/^(https?:|data:)/i.test(src)) {
@@ -320,7 +416,6 @@
         a.setAttribute('href', noteHref(t, resolved) + (hash ? '#' + hash : ''));
       }
     });
-    // the page header already shows the title
     const first = box.firstElementChild;
     if (first && first.tagName === 'H1') first.remove();
     return box;
@@ -337,7 +432,7 @@
 
   function tocFrom(box) {
     const hs = [...box.querySelectorAll('h2, h3')];
-    if (hs.length < 3) return '';
+    if (hs.length < 3) return '<div></div>';
     return `
       <aside class="toc" aria-label="On this page">
         <h2>On this page</h2>
@@ -346,79 +441,82 @@
   }
 
   async function fetchNote(t, path) {
-    const key = `${t.repo}/${path}`;
-    if (noteCache.has(key)) return noteCache.get(key);
+    const k = `${t.repo}/${path}`;
+    if (noteCache.has(k)) return noteCache.get(k);
     const res = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${DATA.branch}/${enc(path)}`);
     if (!res.ok) throw new Error(String(res.status));
     const text = await res.text();
-    noteCache.set(key, text);
+    noteCache.set(k, text);
     return text;
   }
 
+  let readWatch = null;
   async function renderNote(t, path) {
     const all = flatNotes(t);
     const i = all.findIndex((n) => n.path === path);
     const n = all[i] || { title: path.split('/').pop().replace(/\.md$/i, ''), sub: [], section: '', words: 0 };
     setTitle(n.title);
+    store.set('last', { t: t.slug, n: path });
     const gh = `https://github.com/${DATA.owner}/${t.repo}/blob/${DATA.branch}/${enc(path)}`;
+    const read = isRead(t, path);
 
     main.innerHTML = `
-    <div class="reader">
-      ${sideNav(t, path)}
-      <article>
+    <div class="reader3">
+      <article class="note">
         <header class="note-head">
-          <p class="crumbs"><a href="./">Home</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
+          <div class="note-art" aria-hidden="true">${V.courseArt(t.slug).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')}</div>
+          <p class="crumbs"><a href="./">Dashboard</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
           <h1>${esc(n.title)}</h1>
           <div class="meta">
-            ${n.words ? `<span>${minutes(n.words)} min read</span>` : ''}
+            <span id="read-chip" class="read-chip${read ? ' done' : ''}">${read ? 'Read' : `${minutes(n.words || 200)} min read`}</span>
+            <span>Note ${i + 1} of ${all.length}</span>
             <span>Arabic, with English terms</span>
-            <a href="${gh}" rel="noopener">Open on GitHub</a>
+            <a href="${gh}" rel="noopener" target="_blank">Open on GitHub</a>
           </div>
         </header>
-        <div class="prose" id="prose"><div class="state"><div class="loading" role="status" aria-label="Loading the note"></div></div></div>
+        <div class="prose" id="prose"><div class="skeleton" role="status" aria-label="Loading the note"><i></i><i></i><i></i><i></i></div></div>
         <nav class="pager" aria-label="Previous and next note">
-          ${i > 0 ? `<a class="prev" href="${noteHref(t, all[i - 1].path)}"><small>Previous</small>${esc(all[i - 1].title)}</a>` : ''}
+          ${i > 0 ? `<a class="prev" href="${noteHref(t, all[i - 1].path)}"><small>Previous</small>${esc(all[i - 1].title)}</a>` : '<span></span>'}
           ${i >= 0 && i < all.length - 1 ? `<a class="next" href="${noteHref(t, all[i + 1].path)}"><small>Next</small>${esc(all[i + 1].title)}</a>` : ''}
         </nav>
       </article>
       <div id="toc-slot"></div>
     </div>`;
-
-    const side = document.getElementById('side');
-    side.querySelector('.side-toggle').addEventListener('click', (e) => {
-      const open = side.classList.toggle('open');
-      e.currentTarget.setAttribute('aria-expanded', open);
-    });
-    const cur = side.querySelector('[aria-current="page"]');
-    if (cur && innerWidth > 820) cur.scrollIntoView({ block: 'center' });
+    V.enhance(main);
     if (!location.hash) scrollTo(0, 0);
 
     const prose = document.getElementById('prose');
     try {
       const md = await fetchNote(t, path);
-      if (new URLSearchParams(location.search).get('n') !== path) return; // navigated away
+      if (new URLSearchParams(location.search).get('n') !== path) return;
       const html = DOMPurify.sanitize(marked.parse(md, { gfm: true, headerIds: false, mangle: false }));
       const box = prepare(html, t, path);
       const dir = noteDir(box);
       prose.setAttribute('dir', dir);
       prose.setAttribute('lang', dir === 'rtl' ? 'ar' : 'en');
       prose.replaceChildren(...box.childNodes);
-      const tocSlot = document.getElementById('toc-slot');
-      tocSlot.outerHTML = tocFrom(prose) || '<div></div>';
+      document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       spy();
       drawDiagrams(prose);
       if (location.hash) scrollToHash(location.hash);
+      // the note counts as read once its last part has been on screen
+      if (readWatch) readWatch.disconnect();
+      const pager = main.querySelector('.pager');
+      if ('IntersectionObserver' in window && pager) {
+        readWatch = new IntersectionObserver((en) => { if (en.some((x) => x.isIntersecting)) { markRead(t, path); readWatch.disconnect(); } });
+        setTimeout(() => readWatch && readWatch.observe(pager), 1500);
+      }
     } catch (err) {
       prose.innerHTML = `<div class="state"><h1>This note didn't load</h1>
         <p>GitHub didn't return the file. Check your connection and reload the page, or <a href="${gh}" rel="noopener">read it on GitHub</a>.</p></div>`;
     }
   }
 
-  /* ---------- diagrams (Mermaid, loaded only when a note has one) ---------- */
+  /* ---------- diagrams ---------- */
   let mermaidReady = null;
   const isDark = () => {
-    const t = document.documentElement.getAttribute('data-theme');
-    return t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    const th = document.documentElement.getAttribute('data-theme');
+    return th ? th === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   };
   function loadMermaid() {
     if (!mermaidReady) {
@@ -444,9 +542,8 @@
       });
       for (const n of nodes) {
         if (!n.isConnected) return;
-        try { await mm.run({ nodes: [n] }); }
-        catch (e) { n.classList.add('failed'); n.closest('.diagram')?.classList.add('as-code'); }
-        const svg = n.querySelector('svg'); const vb = svg && svg.viewBox.baseVal; if (vb && vb.width) { svg.style.maxWidth = 'none'; svg.style.width = Math.round(vb.width) + 'px'; }
+        try { await mm.run({ nodes: [n] }); V.diagram(n.closest('.diagram')); }
+        catch (e) { n.closest('.diagram')?.classList.add('as-code'); }
       }
     } catch (e) {
       nodes.forEach((n) => n.closest('.diagram')?.classList.add('as-code'));
@@ -464,7 +561,7 @@
         if (en.isIntersecting) {
           links.forEach((l) => l.classList.remove('on'));
           const a = byId.get(en.target.id);
-          if (a) a.classList.add('on');
+          if (a) { a.classList.add('on'); a.scrollIntoView({ block: 'nearest' }); }
         }
       });
     }, { rootMargin: '-80px 0px -70% 0px' });
@@ -473,47 +570,39 @@
 
   function renderMissing() {
     setTitle('Not found');
-    main.innerHTML = `<div class="wrap"><div class="state"><h1>That course isn't here</h1>
-      <p>The link may be from an older version of the site. <a href="./">Go to the home page</a> to see all four courses.</p></div></div>`;
+    main.innerHTML = `<div class="page"><div class="state"><h1>That course isn't here</h1>
+      <p>The link may be from an older version of the site. <a href="./">Go to the dashboard</a> to see all four courses.</p></div></div>`;
   }
 
-  /* ---------- live sync: pick up notes added to GitHub after this site was built ---------- */
+  /* ---------- notes added on GitHub after this index was built ---------- */
   async function syncFromGitHub() {
     const results = await Promise.allSettled(DATA.tracks.map(async (t) => {
       const res = await fetch(`https://api.github.com/repos/${DATA.owner}/${t.repo}/git/trees/${DATA.branch}?recursive=1`);
       if (!res.ok) return false;
       const tree = await res.json();
       const known = new Set(flatNotes(t).map((n) => n.path));
-      const fresh = (tree.tree || []).filter((x) => x.type === 'blob' && /\.md$/i.test(x.path) &&
-        !/(^|\/)readme\.md$/i.test(x.path) && !known.has(x.path));
+      const fresh = (tree.tree || []).filter((x) => x.type === 'blob' && /\.md$/i.test(x.path) && !/(^|\/)readme\.md$/i.test(x.path) && !known.has(x.path));
       if (!fresh.length) return false;
       fresh.forEach((f) => {
         const parts = f.path.split('/');
         const title = parts.pop().replace(/\.md$/i, '');
-        const secName = parts.length ? parts[0] : 'More topics';
-        let sec = t.sections.find((s) => s.name === secName);
-        if (!sec) { sec = { name: secName, notes: [] }; t.sections.push(sec); }
+        const top = parts.length ? parts[0] : null;
+        let sec = top ? t.sections.find((s) => s.notes.some((x) => x.path.split('/')[0] === top)) : t.sections.find((s) => s.name === 'More topics');
+        if (!sec) { sec = { name: top ? top.replace(/-/g, ' ') : 'More topics', notes: [] }; t.sections.push(sec); }
         sec.notes.push({ path: f.path, title, sub: parts.slice(1), words: 0 });
       });
       t.count = flatNotes(t).length;
       return true;
     }));
-    if (results.some((r) => r.status === 'fulfilled' && r.value)) {
-      buildIndex();
-      const p = new URLSearchParams(location.search);
-      if (!p.get('n') && document.activeElement?.id !== 'q') route();
-    }
+    if (results.some((r) => r.status === 'fulfilled' && r.value)) { buildIndex(); renderNav(); }
   }
 
   /* ---------- boot ---------- */
   fetch('data/manifest.json')
     .then((r) => r.json())
-    .then((d) => {
-      DATA = d; buildIndex(); route();
-      syncFromGitHub().catch(() => { /* manifest is enough */ });
-    })
+    .then((d) => { DATA = d; buildIndex(); route(); syncFromGitHub().catch(() => { /* the index is enough */ }); })
     .catch(() => {
-      main.innerHTML = `<div class="wrap"><div class="state"><h1>The notes index didn't load</h1>
+      main.innerHTML = `<div class="page"><div class="state"><h1>The notes index didn't load</h1>
         <p>Reload the page. If it keeps happening, the notes are all on <a href="https://github.com/ammaryasser28">GitHub</a>.</p></div></div>`;
     });
 })();
