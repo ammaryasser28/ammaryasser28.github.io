@@ -100,7 +100,7 @@ window.Visuals = (() => {
     <svg class="monogram" viewBox="0 0 96 96" aria-hidden="true">
       <rect width="96" height="96" rx="24" class="mono-bg"/>
       <path d="M48 16 l26 10 v20 c0 17 -11 28 -26 34 c-15 -6 -26 -17 -26 -34 v-20z" class="mono-shield"/>
-      <text x="48" y="58" text-anchor="middle" class="mono-text">AY</text>
+      <text x="48" y="58" text-anchor="middle" class="mono-text">BY</text>
     </svg>`;
 
   /* ---------- motion ---------- */
@@ -192,11 +192,13 @@ window.Visuals = (() => {
     const port = document.createElement('div'); port.className = 'dg-port';
     const pre = svg.parentElement; pre.replaceWith(port); port.appendChild(svg);
     const bar = document.createElement('div'); bar.className = 'dg-bar';
-    bar.innerHTML = `<span class="dg-zoom">100%</span>${tbBtn('out', 'Zoom out')}${tbBtn('in', 'Zoom in')}${tbBtn('fit', 'Fit to width')}${tbBtn('full', 'Full screen')}`;
-    fig.appendChild(bar);
+    const nodeCount = svg.querySelectorAll('g.node').length;
+    bar.innerHTML = `<span class="dg-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/></svg>Diagram${nodeCount ? `<small>${nodeCount} boxes. Hover one to trace its links</small>` : ''}</span>
+      <span class="dg-tools"><span class="dg-zoom">100%</span>${tbBtn('out', 'Zoom out')}${tbBtn('in', 'Zoom in')}${tbBtn('fit', 'Fit to width')}${tbBtn('full', 'Full screen')}</span>`;
+    fig.prepend(bar);
     const zl = bar.querySelector('.dg-zoom');
     let scale = 1;
-    const fitScale = () => Math.min(1, (port.clientWidth - 8) / natW);
+    const fitScale = () => Math.min(1, (port.clientWidth - 36) / natW);
     const apply = (s, keepCenter = true) => {
       const cx = port.scrollLeft + port.clientWidth / 2, cy = port.scrollTop + port.clientHeight / 2;
       const ratio = s / scale;
@@ -207,7 +209,9 @@ window.Visuals = (() => {
       if (keepCenter) { port.scrollLeft = cx * ratio - port.clientWidth / 2; port.scrollTop = cy * ratio - port.clientHeight / 2; }
       fig.classList.toggle('pannable', port.scrollWidth > port.clientWidth + 2 || port.scrollHeight > port.clientHeight + 2);
     };
-    apply(1, false);
+    // start at natural size, shrunk to fit the column when that keeps the text readable
+    const startScale = () => { const f = fitScale(); return f >= 1 ? 1 : Math.max(f, 0.7); };
+    apply(startScale(), false);
     bar.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const act = b.dataset.act;
@@ -219,7 +223,7 @@ window.Visuals = (() => {
         else if (fig.requestFullscreen) fig.requestFullscreen().then(() => setTimeout(() => apply(Math.min(2, (port.clientWidth - 40) / natW, (port.clientHeight - 40) / natH), false), 80)).catch(() => {});
       }
     });
-    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && fig.dataset.ready) apply(1, false); });
+    document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && fig.dataset.ready) apply(startScale(), false); });
     port.addEventListener('wheel', (e) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault(); apply(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
@@ -283,5 +287,5 @@ window.Visuals = (() => {
     }
   }
 
-  return { heroArt, courseArt, icon, monogram, enhance, diagram };
+  return { heroArt, courseArt, icon, monogram, enhance, diagram, reveal };
 })();
