@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" width="1200" height="300" role="img" aria-labelledby="t d">
+  <title id="t">Bn Yasser, SOC Analyst</title>
+  <desc id="d">Documenting everything I learn in blue team, so others can learn it faster. Blue Team Notes covers Pre-Security, Introduction to Cybersecurity, Cybersecurity Essentials and SANS SEC450.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#eef1f4"/></linearGradient>
+    <radialGradient id="glow" cx=".18" cy=".1" r=".7"><stop offset="0" stop-color="#8aa4ff" stop-opacity=".28"/><stop offset="1" stop-color="#8aa4ff" stop-opacity="0"/></radialGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2747c9" stop-opacity="0"/><stop offset=".5" stop-color="#2747c9" stop-opacity=".16"/><stop offset="1" stop-color="#2747c9" stop-opacity="0"/></linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.1" fill="#2747c9" fill-opacity=".14"/></pattern>
+    <clipPath id="card"><rect x="1" y="1" width="1198" height="298" rx="22"/></clipPath>
+  </defs>
+  <style>
+    text { font-family: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+    .beam { animation: sweep 7s ease-in-out infinite; }
+    .chip { opacity: 0; animation: rise .7s ease-out forwards; }
+    .dot { animation: pulse 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .edge { stroke: #566476; stroke-opacity: .45; stroke-width: 1.4; stroke-dasharray: 160; stroke-dashoffset: 160; animation: draw 1.2s ease-out forwards; }
+    .node { opacity: 0; animation: rise .6s ease-out forwards; }
+    .cursor { animation: blink 1.1s steps(1) infinite; }
+    @keyframes sweep { 0% { transform: translateX(-420px); } 60%, 100% { transform: translateX(1300px); } }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.45); } }
+    @keyframes blink { 50% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .beam, .dot, .cursor { animation: none; } .chip, .node { animation: none; opacity: 1; } .edge { animation: none; stroke-dashoffset: 0; } }
+  </style>
+  <g clip-path="url(#card)">
+    <rect width="1200" height="300" fill="url(#bg)"/>
+    <rect width="1200" height="300" fill="url(#dots)"/>
+    <rect width="1200" height="300" fill="url(#glow)"/>
+    <rect class="beam" x="0" y="-40" width="300" height="380" fill="url(#beam)" transform="skewX(-18)"/>
+    <g><line class="edge" style="animation-delay:0.00s" x1="905" y1="70" x2="1010" y2="52"/><line class="edge" style="animation-delay:0.25s" x1="1010" y1="52" x2="1110" y2="96"/><line class="edge" style="animation-delay:0.50s" x1="905" y1="70" x2="960" y2="150"/><line class="edge" style="animation-delay:0.75s" x1="960" y1="150" x2="1070" y2="170"/><line class="edge" style="animation-delay:1.00s" x1="1110" y1="96" x2="1070" y2="170"/><line class="edge" style="animation-delay:1.25s" x1="1070" y1="170" x2="1150" y2="230"/><line class="edge" style="animation-delay:1.50s" x1="1070" y1="170" x2="1000" y2="240"/><line class="edge" style="animation-delay:1.75s" x1="960" y1="150" x2="880" y2="215"/><line class="edge" style="animation-delay:2.00s" x1="1000" y1="240" x2="880" y2="215"/><g class="node" style="animation-delay:0.0s"><rect x="890" y="59" width="30" height="22" rx="6" fill="#ffffff" stroke="#1795b0" stroke-width="1.6"/><circle cx="905" cy="70" r="3" fill="#1795b0"/></g><g class="node" style="animation-delay:0.3s"><rect x="995" y="41" width="30" height="22" rx="6" fill="#ffffff" stroke="#6a55e0" stroke-width="1.6"/><circle cx="1010" cy="52" r="3" fill="#6a55e0"/></g><g class="node" style="animation-delay:0.6s"><rect x="1095" y="85" width="30" height="22" rx="6" fill="#ffffff" stroke="#1c9466" stroke-width="1.6"/><circle cx="1110" cy="96" r="3" fill="#1c9466"/></g><g class="node" style="animation-delay:0.9s"><rect x="945" y="139" width="30" height="22" rx="6" fill="#ffffff" stroke="#c9641c" stroke-width="1.6"/><circle cx="960" cy="150" r="3" fill="#c9641c"/></g><g class="node" style="animation-delay:1.2s"><rect x="1055" y="159" width="30" height="22" rx="6" fill="#ffffff" stroke="#1795b0" stroke-width="1.6"/><circle cx="1070" cy="170" r="3" fill="#1795b0"/></g><g class="node" style="animation-delay:1.5s"><rect x="1135" y="219" width="30" height="22" rx="6" fill="#ffffff" stroke="#6a55e0" stroke-width="1.6"/><circle cx="1150" cy="230" r="3" fill="#6a55e0"/></g><g class="node" style="animation-delay:1.8s"><rect x="985" y="229" width="30" height="22" rx="6" fill="#ffffff" stroke="#1c9466" stroke-width="1.6"/><circle cx="1000" cy="240" r="3" fill="#1c9466"/></g><g class="node" style="animation-delay:2.1s"><rect x="865" y="204" width="30" height="22" rx="6" fill="#ffffff" stroke="#c9641c" stroke-width="1.6"/><circle cx="880" cy="215" r="3" fill="#c9641c"/></g></g>
+  </g>
+  <rect x="1" y="1" width="1198" height="298" rx="22" fill="none" stroke="#d3dae3"/>
+  <text x="64" y="62" font-size="16" fill="#566476" letter-spacing="1.5">BLUE TEAM NOTES</text>
+  <text x="62" y="122" font-size="58" textLength="282" lengthAdjust="spacingAndGlyphs" font-weight="700" fill="#2747c9">Bn Yasser</text>
+  <text x="64" y="156" font-size="20" textLength="122" lengthAdjust="spacingAndGlyphs" font-weight="600" fill="#14202e">SOC Analyst</text>
+  <rect x="64" y="174" width="4" height="26" rx="2" fill="#f2b33d"/>
+  <text x="80" y="193" font-size="18" fill="#14202e"><tspan textLength="623" lengthAdjust="spacingAndGlyphs">Documenting everything I learn in blue team, so others can learn it faster.</tspan></text><text class="cursor" x="709" y="193" font-size="18" fill="#f2b33d">▍</text>
+  <g transform="translate(64 222)"><g class="chip" style="animation-delay:0.00s">
+    <rect width="132" height="34" rx="17" fill="#1795b0" fill-opacity=".13" stroke="#1795b0" stroke-opacity=".55"/>
+    <circle class="dot" style="animation-delay:0.0s" cx="17" cy="17" r="5" fill="#1795b0"/>
+    <text x="30" y="22" textLength="86" lengthAdjust="spacingAndGlyphs" font-size="14" font-weight="600" fill="#1795b0">Pre-Security</text>
+  </g></g>
+  <g transform="translate(208 222)"><g class="chip" style="animation-delay:0.15s">
+    <rect width="194" height="34" rx="17" fill="#6a55e0" fill-opacity=".13" stroke="#6a55e0" stroke-opacity=".55"/>
+    <circle class="dot" style="animation-delay:0.6s" cx="17" cy="17" r="5" fill="#6a55e0"/>
+    <text x="30" y="22" textLength="148" lengthAdjust="spacingAndGlyphs" font-size="14" font-weight="600" fill="#6a55e0">Intro to Cybersecurity</text>
+  </g></g>
+  <g transform="translate(414 222)"><g class="chip" style="animation-delay:0.30s">
+    <rect width="215" height="34" rx="17" fill="#1c9466" fill-opacity=".13" stroke="#1c9466" stroke-opacity=".55"/>
+    <circle class="dot" style="animation-delay:1.2s" cx="17" cy="17" r="5" fill="#1c9466"/>
+    <text x="30" y="22" textLength="169" lengthAdjust="spacingAndGlyphs" font-size="14" font-weight="600" fill="#1c9466">Cybersecurity Essentials</text>
+  </g></g>
+  <g transform="translate(641 222)"><g class="chip" style="animation-delay:0.45s">
+    <rect width="144" height="34" rx="17" fill="#c9641c" fill-opacity=".13" stroke="#c9641c" stroke-opacity=".55"/>
+    <circle class="dot" style="animation-delay:1.8s" cx="17" cy="17" r="5" fill="#c9641c"/>
+    <text x="30" y="22" textLength="98" lengthAdjust="spacingAndGlyphs" font-size="14" font-weight="600" fill="#c9641c">SANS SEC450</text>
+  </g></g>
+</svg>
