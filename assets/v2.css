@@ -781,3 +781,9 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .nm-bar span { font: 600 12px "IBM Plex Mono", monospace; color: #fff; padding: 2px 6px; border-radius: 5px; background: rgb(0 0 0 / .25); }
 .nm-siem .nm-art { height: 130px; }
 @media (max-width: 720px) { .nm-rings .nm-art { justify-content: center; } }
+.reader3 .note { container-type: inline-size; }
+@container (max-width: 820px) { .note-map { grid-template-columns: 1fr; } }
+.nm-bar.cur:last-child::before { left: auto; right: 0; transform: none; }
+.nm-scan + .nm-bar.cur::before { left: 0; transform: none; }
+.nm-siem .nm-art { height: 156px; padding-top: 32px; }
+.nm-dots { padding-left: 4px; }
