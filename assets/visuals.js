@@ -325,8 +325,7 @@ window.Visuals = (() => {
     const port = document.createElement('div'); port.className = 'dg-port';
     const pre = svg.parentElement; pre.replaceWith(port); port.appendChild(svg);
     const bar = document.createElement('div'); bar.className = 'dg-bar';
-    const nodeCount = svg.querySelectorAll('g.node').length;
-    bar.innerHTML = `<span class="dg-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/></svg>Diagram${nodeCount ? `<small>${nodeCount} boxes. Hover one to trace its links</small>` : ''}</span>
+    bar.innerHTML = `<span class="dg-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/></svg>Diagram<small class="dg-hint"></small></span>
       <span class="dg-tools"><span class="dg-zoom">100%</span>${tbBtn('out', 'Zoom out')}${tbBtn('in', 'Zoom in')}${tbBtn('fit', 'Fit to width')}${tbBtn('full', 'Full screen')}</span>`;
     fig.prepend(bar);
     const zl = bar.querySelector('.dg-zoom');
@@ -340,14 +339,46 @@ window.Visuals = (() => {
       svg.style.height = `${Math.round(natH * scale)}px`;
       zl.textContent = `${Math.round(scale * 100)}%`;
       if (keepCenter) { port.scrollLeft = cx * ratio - port.clientWidth / 2; port.scrollTop = cy * ratio - port.clientHeight / 2; }
-      fig.classList.toggle('pannable', port.scrollWidth > port.clientWidth + 2 || port.scrollHeight > port.clientHeight + 2);
+      edgesFade();
     };
-    // start at natural size, shrunk to fit the column when that keeps the text readable
-    const startScale = () => { const f = fitScale(); return f >= 1 ? 1 : Math.max(f, 0.7); };
+    // start at natural size, shrunk to fit the column so the whole diagram is in view; only a very
+    // wide one stops at half size and scrolls sideways (with a fade on the cut edge)
+    const startScale = () => { const f = fitScale(); return f >= 1 ? 1 : Math.max(f, 0.5); };
+    let zoomed = false;
     apply(startScale(), false);
+    function edgesFade() {
+      const more = port.scrollWidth > port.clientWidth + 2;
+      fig.classList.toggle('pannable', more);
+      fig.classList.toggle('more-r', more && port.scrollLeft + port.clientWidth < port.scrollWidth - 4);
+      fig.classList.toggle('more-l', more && port.scrollLeft > 4);
+    }
+    port.addEventListener('scroll', edgesFade, { passive: true });
+    if ('ResizeObserver' in window) {
+      let lastW = port.clientWidth;
+      new ResizeObserver(() => {
+        if (Math.abs(port.clientWidth - lastW) > 1 && !zoomed && !document.fullscreenElement) { lastW = port.clientWidth; apply(startScale(), false); }
+        edgesFade();
+      }).observe(port);
+    }
+    edgesFade();
+    // measure again once the diagram is really on the page and in view (it can be built before the
+    // note is inserted, when the column has no width yet)
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((en) => {
+        if (!en.some((x) => x.isIntersecting)) return;
+        if (!zoomed && !document.fullscreenElement) {
+          apply(startScale(), false);
+          // a diagram that is still wider than the column starts centred, like it is drawn
+          if (!fig.dataset.centred && port.scrollWidth > port.clientWidth + 2) { fig.dataset.centred = '1'; port.scrollLeft = (port.scrollWidth - port.clientWidth) / 2; }
+        }
+        edgesFade();
+      }, { rootMargin: '200px 0px' });
+      io.observe(fig);
+    }
     bar.addEventListener('click', (e) => {
       const b = e.target.closest('button'); if (!b) return;
       const act = b.dataset.act;
+      if (act !== 'full') zoomed = act !== 'fit';
       if (act === 'in') apply(scale * 1.25);
       else if (act === 'out') apply(scale / 1.25);
       else if (act === 'fit') apply(fitScale(), false);
@@ -359,7 +390,7 @@ window.Visuals = (() => {
     document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && fig.dataset.ready) apply(startScale(), false); });
     port.addEventListener('wheel', (e) => {
       if (!e.ctrlKey && !e.metaKey) return;
-      e.preventDefault(); apply(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
+      e.preventDefault(); zoomed = true; apply(scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1));
     }, { passive: false });
     // drag to pan
     let drag = null;
@@ -371,34 +402,45 @@ window.Visuals = (() => {
     const end = () => { drag = null; fig.classList.remove('dragging'); };
     port.addEventListener('pointerup', end); port.addEventListener('pointercancel', end);
 
-    // graph: which edges touch which node
-    const prefix = `${svg.id}-flowchart-`;
+    const type = svg.getAttribute('aria-roledescription') || '';
+    const hint = (t) => { bar.querySelector('.dg-hint').textContent = t; };
+    if (type === 'sequence') { sequence(fig, svg, hint); return; }
+
+    // a graph: boxes and the lines between them (flowcharts and mindmaps)
     const nodes = new Map();
-    svg.querySelectorAll('g.node').forEach((g) => {
-      if (!g.id.startsWith(prefix)) return;
-      nodes.set(g.id.slice(prefix.length).replace(/-\d+$/, ''), g);
-    });
-    const edges = [...svg.querySelectorAll('path.flowchart-link, path[data-edge="true"]')];
-    const links = edges.map((p) => {
-      const raw = (p.dataset.id || p.id.replace(`${svg.id}-`, '')).replace(/^L_/, '').replace(/_\d+$/, '');
-      const parts = raw.split('_');
-      for (let k = 1; k < parts.length; k++) {
-        const a = parts.slice(0, k).join('_'), b = parts.slice(k).join('_');
-        if (nodes.has(a) && nodes.has(b)) return { p, a, b };
-      }
-      return { p, a: null, b: null };
-    });
+    let edges = [];
+    let links = [];
+    if (type === 'mindmap') {
+      svg.querySelectorAll('g.node').forEach((g) => { const m = g.id.match(/-node_(\d+)$/); if (m) nodes.set(m[1], g); });
+      edges = [...svg.querySelectorAll('path[data-edge="true"]')];
+      links = edges.map((p) => { const m = (p.dataset.id || '').match(/^edge_(\d+)_(\d+)$/); return m ? { p, a: m[1], b: m[2] } : { p, a: null, b: null }; });
+    } else {
+      const prefix = `${svg.id}-flowchart-`;
+      svg.querySelectorAll('g.node').forEach((g) => {
+        if (!g.id.startsWith(prefix)) return;
+        nodes.set(g.id.slice(prefix.length).replace(/-\d+$/, ''), g);
+      });
+      edges = [...svg.querySelectorAll('path.flowchart-link, path[data-edge="true"]')];
+      links = edges.map((p) => {
+        const raw = (p.dataset.id || p.id.replace(`${svg.id}-`, '')).replace(/^L_/, '').replace(/_\d+$/, '');
+        const parts = raw.split('_');
+        for (let k = 1; k < parts.length; k++) {
+          const a = parts.slice(0, k).join('_'), b = parts.slice(k).join('_');
+          if (nodes.has(a) && nodes.has(b)) return { p, a, b };
+        }
+        return { p, a: null, b: null };
+      });
+    }
+    edges.forEach((p) => p.classList.add('dg-edge'));
+    const word = type === 'mindmap' ? 'topics' : 'boxes';
+    if (nodes.size) hint(links.some((l) => l.a) ? `${nodes.size} ${word}. Hover one to trace its links` : `${nodes.size} ${word}. Hover one to highlight it`);
 
     // draw-in when the diagram scrolls into view
-    if (!reduce() && 'IntersectionObserver' in window && edges.length) {
-      fig.classList.add('pre-draw');
+    const all = [...nodes.values()];
+    if (!reduce() && 'IntersectionObserver' in window && (edges.length || all.length)) {
       edges.forEach((p, i) => { try { const L = p.getTotalLength(); p.style.setProperty('--len', L); p.style.setProperty('--i', i); } catch (e) { /* not measurable */ } });
-      [...nodes.values()].forEach((g, i) => g.style.setProperty('--i', i));
-      // start as soon as the top of the diagram is clearly on screen
-      const ob = new IntersectionObserver((en) => {
-        if (en.some((x) => x.isIntersecting)) { fig.classList.add('drawn'); ob.disconnect(); setTimeout(() => fig.classList.remove('pre-draw', 'drawn'), 2600); }
-      }, { threshold: 0, rootMargin: '0px 0px -12% 0px' });
-      ob.observe(fig);
+      all.forEach((g, i) => g.style.setProperty('--i', i));
+      drawIn(fig, Math.max(edges.length ? 250 + (edges.length - 1) * 70 + 900 : 0, (all.length - 1) * 60 + 500, edges.length ? 1400 : 0));
     }
 
     // hover a node: light it, its neighbours and the edges between them
@@ -419,6 +461,62 @@ window.Visuals = (() => {
       svg.addEventListener('pointerout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('g.node')) { if (!e.target.closest('g.node')) return; clear(); } });
       fig.classList.add('interactive');
     }
+  }
+
+  // play the draw-in once the top of the diagram is clearly on screen
+  // ms: how long the whole draw-in takes; the draw-in styles are dropped right after it
+  function drawIn(fig, ms) {
+    fig.classList.add('pre-draw');
+    const ob = new IntersectionObserver((en) => {
+      if (en.some((x) => x.isIntersecting)) { fig.classList.add('drawn'); ob.disconnect(); setTimeout(() => fig.classList.remove('pre-draw', 'drawn'), ms + 150); }
+    }, { threshold: 0, rootMargin: '0px 0px -12% 0px' });
+    ob.observe(fig);
+  }
+
+  // sequence diagrams: participants, their lifelines and the messages between them
+  function sequence(fig, svg, hint) {
+    fig.classList.add('sq');
+    const parts = new Map();
+    const own = (id, el) => { if (!id) return; if (!parts.has(id)) parts.set(id, []); parts.get(id).push(el); };
+    svg.querySelectorAll('g[data-et="participant"], line[data-et="life-line"]').forEach((el) => own(el.dataset.id, el));
+    const msgs = [...svg.querySelectorAll('[data-et="message"]')].map((l) => {
+      const prev = l.previousElementSibling;
+      return { l, text: prev && prev.classList.contains('messageText') ? prev : null, a: l.dataset.from, b: l.dataset.to, y: +(l.getAttribute('y1') || 0) };
+    });
+    const notes = [...svg.querySelectorAll('g[data-et="note"]')];
+    if (!parts.size) return;
+    hint(`${new Set([...parts.keys()]).size} participants. Hover one to trace its messages`);
+
+    // draw-in: participants first, then every message and note from top to bottom
+    if (!reduce() && 'IntersectionObserver' in window) {
+      let i = 0;
+      parts.forEach((els) => { els.forEach((el) => el.style.setProperty('--i', i)); i += 1; });
+      const yOf = (el) => { try { return el.getBBox().y; } catch (e) { return 0; } };
+      const steps = [...msgs.map((m) => ({ y: m.y, els: [m.l, m.text].filter(Boolean) })), ...notes.map((n) => ({ y: yOf(n), els: [n] }))].sort((p, q) => p.y - q.y);
+      steps.forEach((st) => { i += 1; st.els.forEach((el) => el.style.setProperty('--i', i)); });
+      drawIn(fig, i * 110 + 450);
+    }
+
+    // hover a participant: light its lifeline and every message it sends or receives
+    const clear = () => { fig.classList.remove('focus'); svg.querySelectorAll('.hl').forEach((x) => x.classList.remove('hl')); svg.querySelectorAll('.flow').forEach((x) => x.classList.remove('flow')); };
+    const light = (ids, only) => {
+      clear(); fig.classList.add('focus');
+      ids.forEach((id) => (parts.get(id) || []).forEach((el) => el.classList.add('hl')));
+      msgs.forEach((m) => {
+        if (only ? m === only : ids.includes(m.a) || ids.includes(m.b)) {
+          m.l.classList.add('hl', 'flow'); m.text?.classList.add('hl');
+          if (!only) [m.a, m.b].forEach((id) => (parts.get(id) || []).forEach((el) => el.classList.add('hl')));
+        }
+      });
+    };
+    svg.addEventListener('pointerover', (e) => {
+      const p = e.target.closest('g[data-et="participant"], line[data-et="life-line"]');
+      if (p) { light([p.dataset.id]); return; }
+      const m = msgs.find((x) => x.l === e.target || x.text === e.target || (x.text && x.text.contains(e.target)));
+      if (m) light([m.a, m.b], m);
+    });
+    svg.addEventListener('pointerleave', clear);
+    fig.classList.add('interactive');
   }
 
   return { heroArt, courseArt, noteBanner, noteMap, courseMap, mapFx, icon, monogram, enhance, diagram, reveal };
