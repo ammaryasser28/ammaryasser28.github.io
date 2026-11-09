@@ -82,6 +82,43 @@ window.Visuals = (() => {
       <text x="30" y="24" class="tiny">SIEM: logon events / hour</text>`, 'A SIEM chart of logon events with one spike raising an alert');
   }
 
+  /* ---------- wide banner at the top of every note ---------- */
+  const BANNER = {
+    'pre-security': ['Physical', 'Data Link', 'Network', 'Transport', 'Session', 'Presentation', 'Application'],
+    intro: ['Plaintext', 'AES-256', 'RSA', 'SHA-256', 'PKI', 'TLS 1.3', 'Ciphertext'],
+    essentials: ['Recon', 'Weaponize', 'Deliver', 'Exploit', 'Install', 'C2', 'Actions'],
+    sec450: ['4624', '4625', '4688', '7045', 'Sysmon 1', 'Sysmon 3', 'Alert'],
+  };
+  function noteBanner(slug) {
+    const labels = BANNER[slug] || BANNER.essentials;
+    const W = 1200, H = 120, y = 74, step = (W - 160) / (labels.length - 1);
+    const xs = labels.map((_, i) => 80 + i * step);
+    const hit = labels.length - 2;
+    const line = `M${xs[0]} ${y} H${xs[xs.length - 1]}`;
+    return `
+    <svg class="note-banner" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <pattern id="bgrid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" class="grid-line"/></pattern>
+        <linearGradient id="bfade" x1="0" x2="1"><stop offset="0" stop-color="var(--cobalt)" stop-opacity="0"/><stop offset=".5" stop-color="var(--cobalt)" stop-opacity=".9"/><stop offset="1" stop-color="var(--cobalt)" stop-opacity="0"/></linearGradient>
+      </defs>
+      <rect width="${W}" height="${H}" class="art-bg"/>
+      <rect width="${W}" height="${H}" fill="url(#bgrid)"/>
+      <path d="${line}" class="wire"/>
+      <rect class="scan" x="-240" y="0" width="240" height="${H}" fill="url(#bfade)" opacity=".12"/>
+      <path id="bflow" d="${line}" fill="none" stroke="none"/>
+      ${[0, 1.4, 2.8].map((d) => `<circle r="4.5" class="packet ok"><animateMotion dur="4.2s" begin="${d}s" repeatCount="indefinite"><mpath href="#bflow"/></animateMotion></circle>`).join('')}
+      <path id="bbad" d="M${xs[0]} ${y} H${xs[hit]}" fill="none" stroke="none"/>
+      <circle r="6" class="packet bad"><animateMotion dur="3.6s" begin="1s" repeatCount="indefinite" keyPoints="0;1;1" keyTimes="0;.7;1" calcMode="linear"><mpath href="#bbad"/></animateMotion></circle>
+      ${labels.map((l, i) => `
+        <g transform="translate(${xs[i]} ${y})"><g class="bnode${i === hit ? ' target' : ''}" style="--i:${i}">
+          ${i === hit ? '<circle r="22" class="ping"/><circle r="22" class="ping late"/>' : ''}
+          <circle r="11" class="bdot"/>
+          <circle r="4" class="bcore"/>
+          <text y="-22" text-anchor="middle" class="blabel">${l}</text>
+        </g></g>`).join('')}
+    </svg>`;
+  }
+
   /* ---------- small line icons ---------- */
   const ICONS = {
     log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -287,5 +324,5 @@ window.Visuals = (() => {
     }
   }
 
-  return { heroArt, courseArt, icon, monogram, enhance, diagram, reveal };
+  return { heroArt, courseArt, noteBanner, icon, monogram, enhance, diagram, reveal };
 })();
