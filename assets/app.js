@@ -155,7 +155,23 @@
     if (el && el.classList.contains('topic')) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
   }
 
+  // visit counter (GoatCounter): one hit per page, also for in-site navigation
+  let tracked = '';
+  function track() {
+    const path = location.pathname + location.search;
+    if (path === tracked) return;
+    const send = () => {
+      const gc = window.goatcounter;
+      if (!gc || !gc.count) return false;
+      tracked = path;
+      try { gc.count({ path, title: document.title }); } catch (e) { /* blocked or offline */ }
+      return true;
+    };
+    if (!send()) { let n = 0; const t = setInterval(() => { if (send() || ++n > 20) clearInterval(t); }, 500); }
+  }
+
   function route() {
+    setTimeout(track, 0);
     const p = new URLSearchParams(location.search);
     const t = p.get('t') && trackBy(p.get('t'));
     const n = p.get('n');
