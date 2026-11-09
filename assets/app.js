@@ -91,7 +91,7 @@
           const done = readCount(t), pct = Math.round((done / t.count) * 100);
           const open = t.slug === cur;
           return `
-          <a class="nav-item course-item${open ? ' active' : ''}" href="?t=${t.slug}" title="${esc(t.name)}">
+          <a class="nav-item course-item${open ? ' active' : ''}" data-c="${t.slug}" href="?t=${t.slug}" title="${esc(t.name)}">
             <span class="num">${i + 1}</span>
             <span class="ci-text"><span>${esc(t.name)}</span><span class="mini-bar"><i style="width:${pct}%"></i></span></span>
             <span class="ci-count">${done}/${t.count}</span>
@@ -223,7 +223,7 @@
       <section class="duo">
         <div class="panel reveal continue">
           <div class="panel-head"><span class="panel-ico">${ic('book')}</span><div><h2>${lastN ? 'Continue where you stopped' : 'Where to begin'}</h2><p>${lastN ? 'Your last note in this browser' : 'The note most analysts reach for first'}</p></div></div>
-          <a class="continue-card" href="${noteHref(next.t, next.n.path)}">
+          <a class="continue-card" data-c="${next.t.slug}" href="${noteHref(next.t, next.n.path)}">
             <span class="cc-art">${V.courseArt(next.t.slug)}</span>
             <span class="cc-text"><small>${esc(next.t.name)} / ${esc(next.n.section)}</small><b>${esc(next.n.title)}</b><span>${minutes(next.n.words)} min read</span></span>
             <span class="cc-go">${ic('chev')}</span>
@@ -241,7 +241,7 @@
         <div class="section-head reveal"><h2 id="picks-h">Start here</h2><p>Eight notes worth reading first.</p></div>
         <div class="picks">
           ${picks.map((p, i) => `
-            <a class="pick tilt reveal${isRead(p.track, p.n) ? ' is-read' : ''}" style="--d:${i % 4}" href="${noteHref(p.track, p.n)}">
+            <a class="pick tilt reveal${isRead(p.track, p.n) ? ' is-read' : ''}" data-c="${p.track.slug}" style="--d:${i % 4}" href="${noteHref(p.track, p.n)}">
               <span class="pick-ico">${V.icon(p.icon)}</span>
               <span class="pick-course">${esc(p.track.name)}</span>
               <strong>${esc(p.note.title)}</strong>
@@ -255,7 +255,7 @@
         <div class="section-head reveal"><h2 id="courses-h">Courses, in reading order</h2><p>Each one builds on the one before it.</p></div>
         <ol class="courses">
           ${DATA.tracks.map((t, i) => { const d = readCount(t); return `
-            <li class="reveal" style="--d:${i}"><a class="course tilt" href="?t=${t.slug}">
+            <li class="reveal" style="--d:${i}"><a class="course tilt" data-c="${t.slug}" href="?t=${t.slug}">
               <div class="course-visual">${V.courseArt(t.slug)}<span class="course-step">${i + 1}</span></div>
               <div class="course-body">
                 <h3>${esc(t.name)}</h3>
@@ -566,7 +566,7 @@
 
     main.innerHTML = `
     <div class="reader3">
-      <article class="note">
+      <article class="note" data-c="${t.slug}">
         <header class="note-head">
           <div class="note-art" aria-hidden="true">${V.noteBanner(t.slug)}</div>
           <p class="crumbs"><a href="./">Dashboard</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
