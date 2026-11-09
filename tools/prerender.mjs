@@ -2,6 +2,7 @@
 // diagrams/<l|d>/<note key>.json. The site loads these instead of drawing in the visitor's browser.
 // It opens the real site pages in a headless browser, so the result is identical to a live render.
 // Run from the repository root:  node tools/prerender.mjs
+// A course repo's workflow runs it for its own course only:  TRACK=<slug> OUT_DIR=<that repo>/.site node tools/prerender.mjs
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +11,9 @@ import { createRequire } from 'node:module';
 const require = createRequire(path.join(process.cwd(), 'package.json'));
 const { chromium } = require('playwright');
 const ROOT = process.cwd();
-const OUT = path.join(ROOT, 'diagrams');
+const OUT = process.env.OUT_DIR ? path.join(path.resolve(process.env.OUT_DIR), 'diagrams') : path.join(ROOT, 'diagrams');
+const META = process.env.OUT_DIR ? path.join(path.resolve(process.env.OUT_DIR), 'meta.json') : path.join(OUT, 'meta.json');
+const TRACK = process.env.TRACK || null;
 const PORT = 8899;
 const LOCAL = process.env.LOCAL_LIBS ? JSON.parse(process.env.LOCAL_LIBS) : null; // only for offline testing
 // the clones the manifest was just built from, so the diagrams match that exact commit (raw.githubusercontent.com caches for minutes)
@@ -71,10 +74,11 @@ async function harvest(page, url) {
 
 (async () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/manifest.json'), 'utf8'));
-  const jobs = manifest.tracks.flatMap((t) => t.sections.flatMap((s) => s.notes.map((n) => ({ t: t.slug, p: n.path }))));
+  const jobs = manifest.tracks.filter((t) => !TRACK || t.slug === TRACK).flatMap((t) => t.sections.flatMap((s) => s.notes.map((n) => ({ t: t.slug, p: n.path }))));
+  if (!jobs.length) { console.log(`no notes for ${TRACK || 'any course'}`); process.exit(1); }
   fs.rmSync(OUT, { recursive: true, force: true });
   const browser = await chromium.launch();
-  const report = { built: new Date().toISOString(), notes: jobs.length, diagrams: 0, files: 0, errors: [] };
+  const report = { built: new Date().toISOString(), course: TRACK || 'all', notes: jobs.length, diagrams: 0, files: 0, errors: [] };
   for (const mode of ['light', 'dark']) {
     const dir = path.join(OUT, mode[0]);
     fs.mkdirSync(dir, { recursive: true });
@@ -109,7 +113,7 @@ async function harvest(page, url) {
   }
   await browser.close();
   server.close();
-  fs.writeFileSync(path.join(OUT, 'meta.json'), JSON.stringify(report, null, 2));
+  fs.writeFileSync(META, JSON.stringify(report, null, 2));
   console.log(`notes ${report.notes}, diagrams ${report.diagrams}, files ${report.files}, errors ${report.errors.length}`);
   report.errors.slice(0, 30).forEach((e) => console.log(JSON.stringify(e)));
   // a broken diagram in a note is reported but does not stop the build (the site shows it as code);
