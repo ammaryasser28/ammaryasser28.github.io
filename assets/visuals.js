@@ -394,9 +394,10 @@ window.Visuals = (() => {
       fig.classList.add('pre-draw');
       edges.forEach((p, i) => { try { const L = p.getTotalLength(); p.style.setProperty('--len', L); p.style.setProperty('--i', i); } catch (e) { /* not measurable */ } });
       [...nodes.values()].forEach((g, i) => g.style.setProperty('--i', i));
+      // start once a good part of the diagram is on screen (a tall one may never be 25% visible)
       const ob = new IntersectionObserver((en) => {
-        if (en.some((x) => x.isIntersecting)) { fig.classList.add('drawn'); ob.disconnect(); setTimeout(() => fig.classList.remove('pre-draw', 'drawn'), 2600); }
-      }, { threshold: 0.25 });
+        if (en.some((x) => x.isIntersecting && (x.intersectionRatio >= 0.25 || x.intersectionRect.height >= innerHeight * 0.35))) { fig.classList.add('drawn'); ob.disconnect(); setTimeout(() => fig.classList.remove('pre-draw', 'drawn'), 2600); }
+      }, { threshold: [0, 0.1, 0.25, 0.5] });
       ob.observe(fig);
     }
 
