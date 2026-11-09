@@ -87,7 +87,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .course-head-art { grid-area: art; border-radius: 14px; overflow: hidden; border: 1px solid var(--rule); }
 
 /* note header art: a thin banner */
-.note-art { height: 74px; overflow: hidden; border-radius: 12px; border: 1px solid var(--rule); margin-bottom: 18px; }
+.note-art { height: 120px; overflow: hidden; border-radius: 14px; border: 1px solid var(--rule); margin: 20px 0 22px; direction: ltr; }
 .note-art .course-art { width: 100%; height: 100%; object-fit: cover; }
 .note-art svg { width: 100%; height: 100%; }
 
@@ -230,7 +230,7 @@ body.nav-collapsed .nav-me { justify-content: center; padding: 6px; }
 @keyframes halo { 0%, 100% { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--cobalt), 0 0 0 6px rgb(39 71 201 / .35); } 50% { box-shadow: 0 0 0 4px var(--surface), 0 0 0 6px var(--cobalt), 0 0 0 16px rgb(39 71 201 / 0); } }
 
 /* ---------- pages ---------- */
-.page { max-width: 1480px; padding: 28px 12px 64px 0; }
+.page { max-width: none; padding: 28px 28px 64px 0; }
 main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 
 /* welcome */
@@ -300,8 +300,8 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .chapter li a .c-title { flex: 1; }
 
 /* note page */
-.reader3 { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 28px; max-width: 1480px; padding: 20px 12px 0 0; align-items: start; }
-.reader3 .note { width: 100%; max-width: 1040px; margin: 0 auto; padding: 8px 36px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; }
+.reader3 { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; max-width: none; padding: 20px 28px 0 0; align-items: start; }
+.reader3 .note { width: 100%; max-width: none; margin: 0; padding: 8px 36px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; }
 .reader3 .prose, .reader3 .pager { max-width: none; }
 .reader3 .note-head { border-bottom: 1px solid var(--rule); }
 .note[dir="rtl"] .note-head h1, .note[dir="rtl"] .crumbs, .note[dir="rtl"] .note-head .meta { text-align: right; }
@@ -448,3 +448,17 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .read-chip { direction: ltr; }
 .toc a { unicode-bidi: plaintext; }
 .toc ol[dir="rtl"] a { text-align: right; }
+/* note banner */
+.note-banner { display: block; width: 100%; height: 100%; }
+.note-banner .bdot { fill: var(--surface); stroke: var(--art-line); stroke-width: 2; transition: stroke .3s; }
+.note-banner .bcore { fill: var(--cobalt); opacity: .55; }
+.note-banner .target .bdot { stroke: var(--danger); }
+.note-banner .target .bcore { fill: var(--danger); opacity: 1; animation: blink 1.4s ease-in-out infinite; }
+.note-banner .blabel { font: 600 13px "IBM Plex Mono", ui-monospace, monospace; fill: var(--art-ink); opacity: .78; letter-spacing: .02em; }
+.note-banner .target .blabel { fill: var(--danger); opacity: 1; }
+.note-banner .bnode { animation: bnode-in .55s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i) * 80ms + 150ms); }
+@keyframes bnode-in { from { opacity: 0; transform: translateY(8px); } }
+.note-banner .scan { animation: scan 7s linear infinite; }
+@keyframes scan { to { transform: translateX(1440px); } }
+.reader3 .toc { max-height: calc(100vh - var(--top-h) - 56px); overflow: auto; scrollbar-width: thin; }
+@media (prefers-reduced-motion: reduce) { .note-banner .bnode, .note-banner .scan, .note-banner .target .bcore { animation: none; } }
