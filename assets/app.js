@@ -215,7 +215,6 @@
           <aside class="focus" aria-label="What the notes cover">
             <p class="focus-h">What I write about</p>
             <ul>${['SIEM and detection', 'Windows and Linux logs', 'Active Directory', 'MITRE ATT&CK', 'Network traffic', 'Incident response', 'Cryptography', 'Zero Trust'].map((f, k) => `<li style="--k:${k}">${esc(f)}</li>`).join('')}</ul>
-            <p class="focus-now"><span class="cm-live"></span>Now studying <b>SANS SEC450</b></p>
           </aside>
         </div>
       </section>
