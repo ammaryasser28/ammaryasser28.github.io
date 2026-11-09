@@ -665,39 +665,63 @@
     }
     return mermaidReady;
   }
+  // rendered diagrams are kept per source and theme, so going back to a note is instant
+  const svgCache = new Map();
+  let mmTheme = '';
+  async function renderOne(mm, n, seq) {
+    const fig = n.closest('.diagram');
+    const src = n.textContent;
+    const key = `${isDark() ? 'd' : 'l'}|${fig.clientWidth > 700 ? 'w' : 'n'}|${src}`;
+    let svg = svgCache.get(key);
+    if (!svg) {
+      ({ svg } = await mm.render(`mmd-${Date.now().toString(36)}-${seq}`, src));
+      // a long left-to-right chain becomes unreadable when squeezed; draw it top-to-bottom instead
+      const LR = /^(\s*(?:flowchart|graph)\s+)(LR|RL)\b/im;
+      const m = svg.match(/viewBox="[\d.\-]+ [\d.\-]+ ([\d.]+) /);
+      if (LR.test(src) && m && Number(m[1]) > (fig.clientWidth - 36) * 1.3) ({ svg } = await mm.render(`mmd-${Date.now().toString(36)}-${seq}b`, src.replace(LR, '$1TB')));
+      svgCache.set(key, svg);
+    }
+    if (!n.isConnected) return;
+    n.innerHTML = svg;
+    n.setAttribute('data-processed', 'true');
+    fig.classList.remove('pending');
+    V.diagram(fig);
+  }
   async function drawDiagrams(root) {
     const nodes = [...root.querySelectorAll('pre.mermaid')];
     if (!nodes.length) return;
+    nodes.forEach((n) => n.closest('.diagram')?.classList.add('pending'));
+    let mm;
     try {
-      const mm = await loadMermaid();
-      mm.initialize({
-        startOnLoad: false, securityLevel: 'strict', theme: isDark() ? 'dark' : 'neutral',
-        fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif',
-        flowchart: { htmlLabels: true, useMaxWidth: true },
-      });
-      const LR = /^(\s*(?:flowchart|graph)\s+)(LR|RL)\b/im;
-      for (const n of nodes) {
-        if (!n.isConnected) return;
-        const fig = n.closest('.diagram');
-        const src = n.textContent;
-        try {
-          await mm.run({ nodes: [n] });
-          // a long left-to-right chain becomes unreadable when squeezed; draw it top-to-bottom instead
-          const w = n.querySelector('svg')?.viewBox?.baseVal?.width || 0;
-          if (LR.test(src) && w > (fig.clientWidth - 36) * 1.3) {
-            const fresh = document.createElement('pre');
-            fresh.className = 'mermaid';
-            fresh.textContent = src.replace(LR, '$1TB');
-            n.replaceWith(fresh);
-            await mm.run({ nodes: [fresh] });
-          }
-          V.diagram(fig);
-        } catch (e) { fig?.classList.add('as-code'); }
+      mm = await loadMermaid();
+      const theme = isDark() ? 'dark' : 'neutral';
+      if (theme !== mmTheme) {
+        mm.initialize({
+          startOnLoad: false, securityLevel: 'strict', theme,
+          fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif',
+          flowchart: { htmlLabels: true, useMaxWidth: true },
+        });
+        mmTheme = theme;
       }
     } catch (e) {
+      nodes.forEach((n) => n.closest('.diagram')?.classList.remove('pending'));
       nodes.forEach((n) => n.closest('.diagram')?.classList.add('as-code'));
+      return;
+    }
+    // draw the diagrams closest to what is on screen first, then the rest one by one in the background
+    const mid = scrollY + innerHeight / 2;
+    const order = nodes.map((n) => ({ n, d: Math.abs(n.getBoundingClientRect().top + scrollY - mid) })).sort((x, y) => x.d - y.d).map((x) => x.n);
+    const token = (drawDiagrams.token = (drawDiagrams.token || 0) + 1);
+    let seq = 0;
+    for (const n of order) {
+      if (token !== drawDiagrams.token || !n.isConnected) return;
+      try { await renderOne(mm, n, seq++); } catch (e) { const f = n.closest('.diagram'); f?.classList.remove('pending'); f?.classList.add('as-code'); }
+      await new Promise((r) => setTimeout(r, 0));
     }
   }
+  // fetch the diagram library while the reader is idle, so the first diagram page opens fast
+  const warmMermaid = () => { try { loadMermaid().catch(() => {}); } catch (e) { /* offline */ } };
+  if ('requestIdleCallback' in window) requestIdleCallback(() => setTimeout(warmMermaid, 1200), { timeout: 4000 }); else setTimeout(warmMermaid, 2500);
 
   let observer = null;
   function spy() {
