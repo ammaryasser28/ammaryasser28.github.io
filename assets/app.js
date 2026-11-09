@@ -694,6 +694,7 @@
     let mm;
     try {
       mm = await loadMermaid();
+      if (warmP) await warmP;
       const theme = isDark() ? 'dark' : 'neutral';
       if (theme !== mmTheme) {
         mm.initialize({
@@ -720,7 +721,17 @@
     }
   }
   // fetch the diagram library while the reader is idle, so the first diagram page opens fast
-  const warmMermaid = () => { try { loadMermaid().catch(() => {}); } catch (e) { /* offline */ } };
+  let warmP = null;
+  const warmMermaid = () => {
+    if (mmTheme || warmP) return;
+    warmP = loadMermaid().then((mm) => {
+      if (mmTheme) return null;
+      const theme = isDark() ? 'dark' : 'neutral';
+      mm.initialize({ startOnLoad: false, securityLevel: 'strict', theme, fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif', flowchart: { htmlLabels: true, useMaxWidth: true } });
+      mmTheme = theme;
+      return mm.render('mmd-warm', 'flowchart TB\n  A[warm] --> B[up]');
+    }).catch(() => {});
+  };
   if ('requestIdleCallback' in window) requestIdleCallback(() => setTimeout(warmMermaid, 1200), { timeout: 4000 }); else setTimeout(warmMermaid, 2500);
 
   let observer = null;
