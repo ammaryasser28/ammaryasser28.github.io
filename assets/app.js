@@ -74,11 +74,20 @@
   const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Bn Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">BY</span></span>`;
 
   /* ---------- shell: sidebar ---------- */
+  // the Courses group in the sidebar: open on the Courses page and inside a course; a click on
+  // "Courses" while already on that page folds or unfolds it (coursesFold), until the page changes
+  let coursesFold = null;
+  let coursesWasOpen = false;
   function renderNav() {
     if (!DATA) return;
     const p = new URLSearchParams(location.search);
     const cur = p.get('t'), curNote = p.get('n');
-    const onHome = !cur;
+    const onCourses = p.has('courses') && !cur;
+    const onHome = !cur && !onCourses;
+    if (!onCourses) coursesFold = null;
+    const open = coursesFold === null ? (onCourses || !!cur) : !coursesFold;
+    const animate = open && !coursesWasOpen;
+    coursesWasOpen = open;
     navEl.innerHTML = `
       <div class="nav-top">
         <a class="brand" href="./">${V.monogram()}<span class="brand-text">Blue Team Notes<small>by Bn Yasser</small></span></a>
@@ -89,7 +98,8 @@
         <a class="nav-item${onHome ? ' active' : ''}" href="./">${ic('home')}<span>Dashboard</span></a>
         <a class="nav-item" href="./#picks">${ic('star')}<span>Start here</span></a>
         <button class="nav-item" type="button" data-focus-search>${ic('search')}<span>Search notes</span><kbd>/</kbd></button>
-        <p class="nav-label">Courses</p>
+        <a class="nav-item nav-courses${onCourses ? ' active' : ''}" href="?courses" aria-expanded="${open}" aria-controls="nav-courses">${ic('layers')}<span>Courses</span><span class="nc-count">${DATA.tracks.length}</span>${ic('chev', 'i nc-chev')}</a>
+        <div class="nav-group${open && !animate ? ' open' : ''}" id="nav-courses"><div class="ng-inner">
         ${DATA.tracks.map((t, i) => {
           const done = readCount(t), pct = Math.round((done / t.count) * 100);
           const open = t.slug === cur;
@@ -105,6 +115,7 @@
               <span class="dot">${ic('check', 'tick')}</span><span>${esc([...n.sub, n.title].join(' / '))}</span></a>`).join('')}`).join('')}
           </div>` : ''}`;
         }).join('')}
+        </div></div>
         <p class="nav-label">Explore</p>
         <a class="nav-item" href="https://github.com/ammaryasser28" rel="noopener" target="_blank">${ic('github')}<span>GitHub</span></a>
         <a class="nav-item" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener" target="_blank">${ic('linkedin')}<span>LinkedIn</span></a>
@@ -115,6 +126,18 @@
       store.set('collapsed', c);
     });
     navEl.querySelector('[data-focus-search]').addEventListener('click', () => { closeNav(); document.getElementById('q').focus(); });
+    const group = navEl.querySelector('.nav-group');
+    const btn = navEl.querySelector('.nav-courses');
+    // closed items can't be tabbed to
+    const sync = () => { const o = group.classList.contains('open'); btn.setAttribute('aria-expanded', o); group.inert = !o; };
+    if (animate) requestAnimationFrame(() => requestAnimationFrame(() => { group.classList.add('open'); sync(); }));
+    sync();
+    btn.addEventListener('click', (e) => {
+      if (!onCourses) return; // the router opens the Courses page, and the group with it
+      e.preventDefault(); e.stopPropagation();
+      const o = group.classList.toggle('open');
+      coursesFold = !o; coursesWasOpen = o; sync();
+    });
     const curItem = navEl.querySelector('.tree-item.current');
     if (curItem) curItem.scrollIntoView({ block: 'center' });
   }
@@ -182,6 +205,7 @@
     if (t && n) return renderNote(t, n);
     if (t) return renderTrack(t);
     if (p.get('t')) return renderMissing();
+    if (p.has('courses')) return renderCourses();
     renderHome();
   }
   function setTitle(s) { document.title = s ? `${s} | Bn Yasser` : 'Bn Yasser | Blue Team Notes'; }
@@ -200,6 +224,49 @@
   const pickList = () => PICKS.map((p) => ({ ...p, track: trackBy(p.t) }))
     .filter((p) => p.track && flatNotes(p.track).some((x) => x.path === p.n))
     .map((p) => ({ ...p, note: flatNotes(p.track).find((x) => x.path === p.n) }));
+
+  const courseCards = () => `
+        <ol class="courses">
+          ${DATA.tracks.map((t, i) => { const d = readCount(t); return `
+            <li class="reveal" style="--d:${i}"><a class="course tilt" data-c="${t.slug}" href="?t=${t.slug}">
+              <div class="course-visual">${V.courseArt(t.slug)}<span class="course-step">${i + 1}</span></div>
+              <div class="course-body">
+                <h3>${esc(t.name)}</h3>
+                <span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span>
+                <p>${esc(t.blurb)}</p>
+                <span class="pbar thin"><i style="--w:${Math.round((d / t.count) * 100)}%"></i></span>
+                <div class="course-meta"><span><b>${d}</b> of ${t.count} read</span><span>About ${Math.round(t.words / 200 / 60)} hours</span>${t.status ? '<span class="status">In progress</span>' : ''}</div>
+              </div>
+            </a></li>`; }).join('')}
+        </ol>`;
+
+  /* ---------- the Courses page ---------- */
+  function renderCourses() {
+    setTitle('Courses');
+    const total = DATA.tracks.reduce((a, t) => a + t.count, 0);
+    const hours = Math.round(DATA.tracks.reduce((a, t) => a + t.words, 0) / 200 / 60);
+    const readTotal = DATA.tracks.reduce((a, t) => a + readCount(t), 0);
+    const pct = Math.round((readTotal / total) * 100);
+    main.innerHTML = `
+    <div class="page courses-page">
+      <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
+      <header class="cp-head reveal">
+        <div class="cp-text">
+          <h1>Courses</h1>
+          <p>Four courses in reading order, from networking basics to SANS SEC450. Each one builds on the one before it.</p>
+        </div>
+        <div class="ch-stats cp-stats">
+          <div><b data-count="${DATA.tracks.length}">${DATA.tracks.length}</b><span>Courses</span></div>
+          <div><b data-count="${total}">${total}</b><span>Notes</span></div>
+          <div><b data-count="${hours}">${hours}</b><span>Hours of reading</span></div>
+          <div class="ring" style="--p:${pct}"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="16" class="fg"/></svg><span><b>${pct}%</b><small>${readTotal}/${total} read</small></span></div>
+        </div>
+      </header>
+      ${courseCards()}
+    </div>`;
+    V.enhance(main);
+    scrollTo(0, 0);
+  }
 
   function renderHome() {
     setTitle('');
@@ -240,7 +307,7 @@
 
       <section class="stat-row" aria-label="Site at a glance">
         ${[['notes', 'Notes', total], ['layers', 'Courses', DATA.tracks.length], ['diagram', 'Diagrams', DIAGRAMS], ['clock', 'Hours of reading', hours]].map(([i, l, v], k) => `
-          <div class="stat reveal" style="--d:${k}"><span class="stat-ico">${ic(i)}</span><span><small>${l}</small><b data-count="${v}">${v}</b></span></div>`).join('')}
+          <${i === 'layers' ? 'a href="?courses"' : 'div'} class="stat reveal" style="--d:${k}"><span class="stat-ico">${ic(i)}</span><span><small>${l}</small><b data-count="${v}">${v}</b></span>${i === 'layers' ? `<span class="stat-go">${ic('chev')}</span>` : ''}</${i === 'layers' ? 'a' : 'div'}>`).join('')}
       </section>
 
       <section class="duo">
@@ -256,7 +323,7 @@
           <ol class="up-next" data-c="${next.t.slug}">${up.map((u, j) => `<li><a href="${noteHref(next.t, u.path)}"${isRead(next.t, u.path) ? ' class="read"' : ''}><span class="idx">${String(k + j + 2).padStart(2, '0')}</span><span class="c-title">${esc(u.title)}</span><small>${minutes(u.words || 200)} min</small></a></li>`).join('')}</ol>` : ''; })()}
         </div>
         <div class="panel reveal progress-panel" style="--d:1">
-          <div class="panel-head"><span class="panel-ico">${ic('check')}</span><div><h2>Your progress</h2><p>${readTotal ? `${readTotal} of ${total} notes read` : 'Notes you finish are ticked off here'}</p></div></div>
+          <div class="panel-head"><span class="panel-ico">${ic('check')}</span><div><h2>Your progress</h2><p>${readTotal ? `${readTotal} of ${total} notes read` : 'Notes you finish are ticked off here'}</p></div><a class="panel-link" href="?courses">All courses${ic('chev')}</a></div>
           <ul class="bars">${DATA.tracks.map((t) => { const d = readCount(t), pct = Math.round((d / t.count) * 100); return `
             <li><a href="?t=${t.slug}"><span class="bar-top"><span>${esc(t.name)}</span><span>${d}/${t.count}</span></span><span class="pbar"><i style="--w:${pct}%"></i></span></a></li>`; }).join('')}</ul>
           <p class="fine">Saved in this browser only.</p>
@@ -277,22 +344,6 @@
         </div>
       </section>
 
-      <section class="block" id="courses" aria-labelledby="courses-h">
-        <div class="section-head reveal"><h2 id="courses-h">Courses, in reading order</h2><p>Each one builds on the one before it.</p></div>
-        <ol class="courses">
-          ${DATA.tracks.map((t, i) => { const d = readCount(t); return `
-            <li class="reveal" style="--d:${i}"><a class="course tilt" data-c="${t.slug}" href="?t=${t.slug}">
-              <div class="course-visual">${V.courseArt(t.slug)}<span class="course-step">${i + 1}</span></div>
-              <div class="course-body">
-                <h3>${esc(t.name)}</h3>
-                <span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span>
-                <p>${esc(t.blurb)}</p>
-                <span class="pbar thin"><i style="--w:${Math.round((d / t.count) * 100)}%"></i></span>
-                <div class="course-meta"><span><b>${d}</b> of ${t.count} read</span><span>About ${Math.round(t.words / 200 / 60)} hours</span>${t.status ? '<span class="status">In progress</span>' : ''}</div>
-              </div>
-            </a></li>`; }).join('')}
-        </ol>
-      </section>
     </div>`;
     V.enhance(main);
     if (location.hash) setTimeout(() => scrollToHash(location.hash), 50); else scrollTo(0, 0);
@@ -383,7 +434,7 @@
     const topics = topicsOf(t);
     main.innerHTML = `
     <div class="page course-page" data-c="${t.slug}">
-      <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
+      <p class="crumbs"><a href="./">Dashboard</a> / <a href="?courses">Courses</a></p>
       <header class="course-hero reveal">
         <div class="ch-text">
           <h1>${esc(t.name)}</h1>
@@ -842,7 +893,7 @@
   function renderMissing() {
     setTitle('Not found');
     main.innerHTML = `<div class="page"><div class="state"><h1>That course isn't here</h1>
-      <p>The link may be from an older version of the site. <a href="./">Go to the dashboard</a> to see all four courses.</p></div></div>`;
+      <p>The link may be from an older version of the site. <a href="?courses">See all four courses</a>.</p></div></div>`;
   }
 
   /* ---------- the notes index, read live from the course repos on GitHub ---------- */
