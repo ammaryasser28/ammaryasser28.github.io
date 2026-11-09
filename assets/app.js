@@ -424,7 +424,7 @@
     if (!mermaidReady) {
       mermaidReady = new Promise((resolve, reject) => {
         const sc = document.createElement('script');
-        sc.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js';
+        sc.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.min.js';
         sc.onload = () => resolve(window.mermaid);
         sc.onerror = () => { mermaidReady = null; reject(new Error('mermaid')); };
         document.head.appendChild(sc);
