@@ -195,7 +195,8 @@
 
     main.innerHTML = `
     <div class="page home3">
-      <section class="welcome reveal" id="about">
+      <section class="welcome profile reveal" id="about">
+        <div class="profile-bg" aria-hidden="true"><span class="beam"></span><span class="beam b2"></span></div>
         <div class="welcome-me">
           ${avatar('xl')}
           <div class="welcome-text">
@@ -211,8 +212,12 @@
               <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Send an email">${ic('mail')}</a>
             </div>
           </div>
+          <aside class="focus" aria-label="What the notes cover">
+            <p class="focus-h">What I write about</p>
+            <ul>${['SIEM and detection', 'Windows and Linux logs', 'Active Directory', 'MITRE ATT&CK', 'Network traffic', 'Incident response', 'Cryptography', 'Zero Trust'].map((f, k) => `<li style="--k:${k}">${esc(f)}</li>`).join('')}</ul>
+            <p class="focus-now"><span class="cm-live"></span>Now studying <b>SANS SEC450</b></p>
+          </aside>
         </div>
-        <div class="welcome-art">${V.heroArt()}</div>
       </section>
 
       <section class="stat-row" aria-label="Site at a glance">
@@ -228,6 +233,9 @@
             <span class="cc-text"><small>${esc(next.t.name)} / ${esc(next.n.section)}</small><b>${esc(next.n.title)}</b><span>${minutes(next.n.words)} min read</span></span>
             <span class="cc-go">${ic('chev')}</span>
           </a>
+          ${(() => { const all = flatNotes(next.t); const k = all.findIndex((x) => x.path === next.n.path); const up = all.slice(k + 1, k + 4); return up.length ? `
+          <p class="up-h">Up next in ${esc(next.t.name)}</p>
+          <ol class="up-next" data-c="${next.t.slug}">${up.map((u, j) => `<li><a href="${noteHref(next.t, u.path)}"${isRead(next.t, u.path) ? ' class="read"' : ''}><span class="idx">${String(k + j + 2).padStart(2, '0')}</span><span class="c-title">${esc(u.title)}</span><small>${minutes(u.words || 200)} min</small></a></li>`).join('')}</ol>` : ''; })()}
         </div>
         <div class="panel reveal progress-panel" style="--d:1">
           <div class="panel-head"><span class="panel-ico">${ic('check')}</span><div><h2>Your progress</h2><p>${readTotal ? `${readTotal} of ${total} notes read` : 'Notes you finish are ticked off here'}</p></div></div>
