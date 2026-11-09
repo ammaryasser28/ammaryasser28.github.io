@@ -433,7 +433,7 @@
     </div>`;
     V.enhance(main);
     V.mapFx(main);
-    scrollTo(0, 0);
+    if (location.hash) setTimeout(() => scrollToHash(location.hash), 60); else scrollTo(0, 0);
 
     // the map and the cards light each other up
     const pair = (i, on) => {
@@ -591,7 +591,12 @@
     <div class="reader3">
       <article class="note" data-c="${t.slug}">
         <header class="note-head">
-          <div class="note-art" aria-hidden="true">${V.noteBanner(t.slug)}</div>
+          ${(() => {
+            const tops = topicsOf(t);
+            let ti = tops.findIndex((x) => x.notes.some((m) => m.path === path)); if (ti < 0) ti = 0;
+            const k = Math.max(0, tops[ti].notes.findIndex((m) => m.path === path));
+            return V.noteMap(t.slug, tops.map((x) => ({ name: x.name, count: x.notes.length })), ti, k, (j) => `?t=${t.slug}#topic-${j}`);
+          })()}
           <p class="crumbs"><a href="./">Dashboard</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
           <h1>${esc(n.title)}</h1>
           <div class="meta">
