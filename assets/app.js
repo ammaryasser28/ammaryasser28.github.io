@@ -228,7 +228,7 @@
               <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Send an email">${ic('mail')}</a>
             </div>
           </div>
-          <aside class="focus" aria-label="What the notes cover">
+          <aside class="focus-box" aria-label="What the notes cover">
             <p class="focus-h">What I write about</p>
             <ul>${['SIEM and detection', 'Windows and Linux logs', 'Active Directory', 'MITRE ATT&CK', 'Network traffic', 'Incident response', 'Cryptography', 'Zero Trust'].map((f, k) => `<li style="--k:${k}">${esc(f)}</li>`).join('')}</ul>
           </aside>
@@ -521,7 +521,8 @@
       const fig = document.createElement('figure');
       fig.className = 'diagram'; fig.setAttribute('dir', 'ltr');
       const src = document.createElement('pre');
-      src.className = 'mermaid'; src.textContent = code.textContent;
+      src.className = 'mermaid'; src.textContent = dgSource(code.textContent);
+      fig.dataset.h = h36(src.textContent);
       fig.appendChild(src);
       code.parentElement.replaceWith(fig);
     });
@@ -632,7 +633,7 @@
       V.reveal(prose);
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       spy();
-      drawDiagrams(prose);
+      drawDiagrams(prose, t, path);
       if (location.hash) scrollToHash(location.hash);
       // the note counts as read once its last part has been on screen
       if (readWatch) readWatch.disconnect();
@@ -648,91 +649,174 @@
   }
 
   /* ---------- diagrams ---------- */
-  let mermaidReady = null;
+  // Diagrams are drawn ahead of time on GitHub (tools/prerender.mjs) and saved as SVG, one file per note and theme.
+  // Anything not found there (a note edited since the last build) is drawn here with the exact same settings.
+  const MERMAID_URL = 'https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.min.js';
+  const ELK_URL = 'https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.3/dist/mermaid-layout-elk.esm.min.mjs';
+  const h36 = (str) => { let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h.toString(36); };
+  const dgSource = (txt) => txt.replace(/\r\n?/g, '\n').trim();
   const isDark = () => {
     const th = document.documentElement.getAttribute('data-theme');
     return th ? th === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   };
+  const FONT = '"IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif';
+  const SCALE = {
+    light: ['#e8eefc', '#e3f4ee', '#f3ecfd', '#fdf0e4', '#e6f4f8', '#fbe9ee', '#eef3e3', '#f1edf8', '#e8f0f6', '#fbf3df', '#ecf1f8', '#f5ece6'],
+    dark: ['#22325a', '#1d3d35', '#33285a', '#4a3320', '#1c3a46', '#4a2433', '#2f3d22', '#352d4a', '#22364a', '#4a3e1e', '#28334a', '#45302a'],
+  };
+  const THEME = {
+    light: {
+      background: 'transparent', fontFamily: FONT, fontSize: '15px',
+      primaryColor: '#ffffff', primaryBorderColor: '#c3cee2', primaryTextColor: '#18212f',
+      secondaryColor: '#eef2fa', secondaryBorderColor: '#c3cee2', secondaryTextColor: '#18212f',
+      tertiaryColor: '#f5f7fc', tertiaryBorderColor: '#d5ddea', tertiaryTextColor: '#18212f',
+      mainBkg: '#ffffff', nodeBorder: '#c3cee2', nodeTextColor: '#18212f', textColor: '#18212f', titleColor: '#18212f',
+      lineColor: '#7d8aa3', clusterBkg: '#f4f7fc', clusterBorder: '#d3dceb', edgeLabelBackground: '#ffffff',
+      noteBkgColor: '#fff7e0', noteBorderColor: '#e9c86b', noteTextColor: '#3d3218',
+      actorBkg: '#ffffff', actorBorder: '#c3cee2', actorTextColor: '#18212f', actorLineColor: '#b3bfd4',
+      signalColor: '#5f6c84', signalTextColor: '#18212f', labelBoxBkgColor: '#ffffff', labelBoxBorderColor: '#c3cee2',
+      labelTextColor: '#18212f', loopTextColor: '#18212f', activationBkgColor: '#eef2fa', activationBorderColor: '#9fb0cc',
+      sequenceNumberColor: '#ffffff',
+    },
+    dark: {
+      background: 'transparent', fontFamily: FONT, fontSize: '15px', darkMode: true,
+      primaryColor: '#1b2638', primaryBorderColor: '#3a4b68', primaryTextColor: '#e6ecf5',
+      secondaryColor: '#222e44', secondaryBorderColor: '#3a4b68', secondaryTextColor: '#e6ecf5',
+      tertiaryColor: '#151e2c', tertiaryBorderColor: '#2f3d55', tertiaryTextColor: '#e6ecf5',
+      mainBkg: '#1b2638', nodeBorder: '#3a4b68', nodeTextColor: '#e6ecf5', textColor: '#e6ecf5', titleColor: '#e6ecf5',
+      lineColor: '#7f8fab', clusterBkg: '#131b28', clusterBorder: '#2f3d55', edgeLabelBackground: '#131b28',
+      noteBkgColor: '#2c2614', noteBorderColor: '#7a6327', noteTextColor: '#f3e6c0',
+      actorBkg: '#1b2638', actorBorder: '#3a4b68', actorTextColor: '#e6ecf5', actorLineColor: '#3f5070',
+      signalColor: '#a3b1c9', signalTextColor: '#e6ecf5', labelBoxBkgColor: '#1b2638', labelBoxBorderColor: '#3a4b68',
+      labelTextColor: '#e6ecf5', loopTextColor: '#e6ecf5', activationBkgColor: '#222e44', activationBorderColor: '#4b5f82',
+      sequenceNumberColor: '#0e1520',
+    },
+  };
+  ['light', 'dark'].forEach((m) => SCALE[m].forEach((c, i) => {
+    THEME[m][`cScale${i}`] = c;
+    THEME[m][`cScaleLabel${i}`] = m === 'dark' ? '#e6ecf5' : '#18212f';
+  }));
+  const mmConfig = (mode) => ({
+    startOnLoad: false, securityLevel: 'strict', theme: 'base', themeVariables: THEME[mode],
+    fontFamily: FONT,
+    flowchart: { htmlLabels: true, useMaxWidth: true, curve: 'basis', padding: 14, nodeSpacing: 46, rankSpacing: 58, diagramPadding: 12 },
+    sequence: { useMaxWidth: true, mirrorActors: false, actorMargin: 64, boxMargin: 10, messageFontSize: 14, noteFontSize: 14, actorFontSize: 15 },
+    mindmap: { useMaxWidth: true, padding: 14 },
+  });
+
+  let mermaidReady = null;
   function loadMermaid() {
     if (!mermaidReady) {
       mermaidReady = new Promise((resolve, reject) => {
         const sc = document.createElement('script');
-        sc.src = 'https://cdn.jsdelivr.net/npm/mermaid@11.16.1/dist/mermaid.min.js';
-        sc.onload = () => resolve(window.mermaid);
+        sc.src = MERMAID_URL;
+        // switch off the library's own auto-run straight away, before the page 'load' event can trigger it
+        sc.onload = () => { try { window.mermaid.initialize({ startOnLoad: false }); } catch (e) { /* */ } resolve(window.mermaid); };
         sc.onerror = () => { mermaidReady = null; reject(new Error('mermaid')); };
         document.head.appendChild(sc);
+      }).then(async (mm) => {
+        try { const elk = await import(ELK_URL); mm.registerLayoutLoaders(elk.default); mm.__elk = true; } catch (e) { mm.__elk = false; }
+        return mm;
       });
     }
     return mermaidReady;
   }
-  // rendered diagrams are kept per source and theme, so going back to a note is instant
-  const svgCache = new Map();
-  let mmTheme = '';
-  async function renderOne(mm, n, seq) {
-    const fig = n.closest('.diagram');
-    const src = n.textContent;
-    const key = `${isDark() ? 'd' : 'l'}|${fig.clientWidth > 700 ? 'w' : 'n'}|${src}`;
-    let svg = svgCache.get(key);
-    if (!svg) {
-      ({ svg } = await mm.render(`mmd-${Date.now().toString(36)}-${seq}`, src));
-      // a long left-to-right chain becomes unreadable when squeezed; draw it top-to-bottom instead
-      const LR = /^(\s*(?:flowchart|graph)\s+)(LR|RL)\b/im;
-      const m = svg.match(/viewBox="[\d.\-]+ [\d.\-]+ ([\d.]+) /);
-      if (LR.test(src) && m && Number(m[1]) > (fig.clientWidth - 36) * 1.3) ({ svg } = await mm.render(`mmd-${Date.now().toString(36)}-${seq}b`, src.replace(LR, '$1TB')));
-      svgCache.set(key, svg);
+  let mmMode = '';
+  const FONT_FACES = ['400 15px "IBM Plex Sans"', '500 15px "IBM Plex Sans"', '600 15px "IBM Plex Sans"', '400 15px "IBM Plex Sans Arabic"', '500 15px "IBM Plex Sans Arabic"'];
+  async function readyMermaid() {
+    // labels are measured while drawing, so the real fonts must be in place first
+    try { if (document.fonts) await Promise.all(FONT_FACES.map((f) => document.fonts.load(f))); } catch (e) { /* fonts blocked */ }
+    const mm = await loadMermaid();
+    const mode = isDark() ? 'dark' : 'light';
+    if (mode !== mmMode) {
+      mm.initialize(mmConfig(mode));
+      mmMode = mode;
     }
-    if (!n.isConnected) return;
+    return mm;
+  }
+  // Flowcharts are laid out twice, with the classic engine and with ELK, and the one that fits the reading column
+  // better (narrower, so less zooming out) is kept. ELK must be clearly narrower to win; otherwise classic stays.
+  const LR = /^(\s*(?:flowchart|graph)\s+)(LR|RL)\b/im;
+  const FLOW = /^\s*(?:flowchart|graph)\b/im;
+  let renderSeq = 0;
+  const vbWidth = (svg) => { const m = svg.match(/viewBox="[\d.\-]+ [\d.\-]+ ([\d.]+) /); return m ? Number(m[1]) : Infinity; };
+  async function mmRender(mm, src) {
+    const id = () => `mmd-${(renderSeq += 1).toString(36)}-${Date.now().toString(36)}`;
+    const classic = (await mm.render(id(), src)).svg;
+    if (!mm.__elk || !FLOW.test(src) || /^\s*---/.test(src)) return classic;
+    try {
+      const elk = (await mm.render(id(), `---\nconfig:\n  layout: elk\n---\n${src}`)).svg;
+      const pick = vbWidth(elk) < vbWidth(classic) * 0.85;
+      if (pick && window.__harvest) window.__elkPicks = (window.__elkPicks || 0) + 1;
+      return pick ? elk : classic;
+    } catch (e) {
+      document.querySelectorAll('body > [id^="dmmd-"]').forEach((x) => x.remove());
+      return classic;
+    }
+  }
+  async function drawLive(mm, src, width) {
+    let svg = await mmRender(mm, src);
+    // a long left-to-right chain is unreadable when squeezed; draw it top-to-bottom instead
+    if (LR.test(src) && vbWidth(svg) > Math.max(width - 36, 600) * 1.3) svg = await mmRender(mm, src.replace(LR, '$1TB'));
+    return svg;
+  }
+
+  const svgCache = new Map();
+  const preCache = new Map();
+  function prerendered(t, path) {
+    const key = `${isDark() ? 'd' : 'l'}/${h36(`${t.slug}|${path}`)}`;
+    if (window.__harvest) return Promise.resolve({});
+    if (!preCache.has(key)) {
+      preCache.set(key, fetch(`diagrams/${key}.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+    }
+    return preCache.get(key);
+  }
+  function place(fig, svg) {
+    const n = fig.querySelector('pre.mermaid');
+    if (!n || !n.isConnected) return;
     n.innerHTML = svg;
     n.setAttribute('data-processed', 'true');
     fig.classList.remove('pending');
     V.diagram(fig);
   }
-  async function drawDiagrams(root) {
-    const nodes = [...root.querySelectorAll('pre.mermaid')];
-    if (!nodes.length) return;
-    nodes.forEach((n) => n.closest('.diagram')?.classList.add('pending'));
+  async function drawDiagrams(root, t, path) {
+    const figs = [...root.querySelectorAll('.diagram')].filter((f) => f.querySelector('pre.mermaid'));
+    if (!figs.length) return;
+    const token = (drawDiagrams.token = (drawDiagrams.token || 0) + 1);
+    figs.forEach((f) => f.classList.add('pending'));
+    const mode = isDark() ? 'd' : 'l';
+    // 1. ready-made SVGs from the last build
+    const pre = await prerendered(t, path);
+    if (token !== drawDiagrams.token) return;
+    const left = [];
+    figs.forEach((f) => { const svg = pre[f.dataset.h] || svgCache.get(`${mode}|${f.dataset.h}`); if (svg) place(f, svg); else left.push(f); });
+    if (!left.length) return;
+    // 2. the rest are drawn here, closest to the screen first
     let mm;
     try {
-      mm = await loadMermaid();
-      if (warmP) await warmP;
-      const theme = isDark() ? 'dark' : 'neutral';
-      if (theme !== mmTheme) {
-        mm.initialize({
-          startOnLoad: false, securityLevel: 'strict', theme,
-          fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif',
-          flowchart: { htmlLabels: true, useMaxWidth: true },
-        });
-        mmTheme = theme;
-      }
+      if (document.fonts && document.fonts.ready) await document.fonts.ready;
+      mm = await readyMermaid();
     } catch (e) {
-      nodes.forEach((n) => n.closest('.diagram')?.classList.remove('pending'));
-      nodes.forEach((n) => n.closest('.diagram')?.classList.add('as-code'));
+      left.forEach((f) => { f.classList.remove('pending'); f.classList.add('as-code'); });
       return;
     }
-    // draw the diagrams closest to what is on screen first, then the rest one by one in the background
     const mid = scrollY + innerHeight / 2;
-    const order = nodes.map((n) => ({ n, d: Math.abs(n.getBoundingClientRect().top + scrollY - mid) })).sort((x, y) => x.d - y.d).map((x) => x.n);
-    const token = (drawDiagrams.token = (drawDiagrams.token || 0) + 1);
-    let seq = 0;
-    for (const n of order) {
-      if (token !== drawDiagrams.token || !n.isConnected) return;
-      try { await renderOne(mm, n, seq++); } catch (e) { const f = n.closest('.diagram'); f?.classList.remove('pending'); f?.classList.add('as-code'); }
+    left.sort((x, y) => Math.abs(x.getBoundingClientRect().top + scrollY - mid) - Math.abs(y.getBoundingClientRect().top + scrollY - mid));
+    for (const f of left) {
+      if (token !== drawDiagrams.token || !f.isConnected) return;
+      try {
+        const src = f.querySelector('pre.mermaid').textContent;
+        const svg = await drawLive(mm, src, f.clientWidth);
+        svgCache.set(`${mode}|${f.dataset.h}`, svg);
+        if (window.__harvest) window.__harvest.push({ h: f.dataset.h, svg });
+        place(f, svg);
+      } catch (e) {
+        f.classList.remove('pending'); f.classList.add('as-code');
+        if (window.__harvest) window.__harvest.push({ h: f.dataset.h, error: String(e && e.message || e) });
+      }
       await new Promise((r) => setTimeout(r, 0));
     }
   }
-  // fetch the diagram library while the reader is idle, so the first diagram page opens fast
-  let warmP = null;
-  const warmMermaid = () => {
-    if (mmTheme || warmP) return;
-    warmP = loadMermaid().then((mm) => {
-      if (mmTheme) return null;
-      const theme = isDark() ? 'dark' : 'neutral';
-      mm.initialize({ startOnLoad: false, securityLevel: 'strict', theme, fontFamily: '"IBM Plex Sans", "IBM Plex Sans Arabic", sans-serif', flowchart: { htmlLabels: true, useMaxWidth: true } });
-      mmTheme = theme;
-      return mm.render('mmd-warm', 'flowchart TB\n  A[warm] --> B[up]');
-    }).catch(() => {});
-  };
-  if ('requestIdleCallback' in window) requestIdleCallback(() => setTimeout(warmMermaid, 1200), { timeout: 4000 }); else setTimeout(warmMermaid, 2500);
 
   let observer = null;
   function spy() {
