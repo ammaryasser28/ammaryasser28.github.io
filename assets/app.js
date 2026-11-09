@@ -59,6 +59,13 @@
     layers: '<path d="m12 3 9 5-9 5-9-5z"/><path d="m3 13 9 5 9-5"/>',
     diagram: '<rect x="3" y="4" width="6" height="5" rx="1"/><rect x="15" y="4" width="6" height="5" rx="1"/><rect x="9" y="15" width="6" height="5" rx="1"/><path d="M6 9v3h12V9M12 12v3"/>',
     notes: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    bug: '<rect x="8" y="7" width="8" height="12" rx="4"/><path d="M12 7V4M4 13h4M16 13h4M5 8l3 2M19 8l-3 2M5 19l3-2M19 19l-3-2"/>',
+    globe: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3 3 3 13 0 16M12 4c-3 3-3 13 0 16"/>',
+    net: '<rect x="9" y="3" width="6" height="5" rx="1"/><rect x="3" y="16" width="6" height="5" rx="1"/><rect x="15" y="16" width="6" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/>',
+    monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+    log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    shield: '<path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
   };
   const ic = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name]}</svg>`;
   const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Bn Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">BY</span></span>`;
@@ -316,37 +323,100 @@
   })();
 
   /* ---------- course page ---------- */
+  const TOPIC_ICONS = [
+    [/crypt|encrypt|hash|pki|certif/i, 'lock'], [/attack|exploit|threat|enemy|malware/i, 'bug'],
+    [/web|http|owasp|dns/i, 'globe'], [/firewall|ids|ips/i, 'shield'], [/network|protocol|tcp|osi|traffic/i, 'net'],
+    [/operating|linux|windows|host|endpoint|os\b/i, 'monitor'], [/log|event|siem|forensic|file/i, 'log'],
+    [/framework|mitre|kill|defen|control|security/i, 'shield'],
+  ];
+  const topicIcon = (name) => (TOPIC_ICONS.find(([re]) => re.test(name)) || [0, 'layers'])[1];
+  const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}` : `${m} min`).trim();
+  const SHOW = 6;
+
   function renderTrack(t) {
     setTitle(t.name);
     const d = readCount(t);
+    const pct = Math.round((d / t.count) * 100);
+    const secMin = (s) => s.notes.reduce((a, n) => a + minutes(n.words || 200), 0);
     main.innerHTML = `
-    <div class="page">
+    <div class="page course-page">
       <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
-      <header class="course-head with-art reveal">
-        <div class="course-head-art">${V.courseArt(t.slug)}</div>
-        <h1>${esc(t.name)}<span class="ar" dir="rtl" lang="ar">${esc(t.ar)}</span></h1>
-        <p>${esc(t.blurb)}</p>
-        <div class="meta">
-          <span class="pbar wide"><i style="--w:${Math.round((d / t.count) * 100)}%"></i></span>
-          <span>${d} of ${t.count} notes read</span>
-          <span>About ${Math.round(t.words / 200 / 60)} hours of reading</span>
-          ${t.status ? `<span>${esc(t.status)}</span>` : ''}
-          <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener" target="_blank">View the repository</a>
+      <header class="course-hero reveal">
+        <div class="ch-text">
+          <h1>${esc(t.name)}</h1>
+          <p class="ar" dir="rtl" lang="ar">${esc(t.ar)}</p>
+          <p class="blurb">${esc(t.blurb)}</p>
+          <div class="ch-stats">
+            <div><b data-count="${t.count}">${t.count}</b><span>Notes</span></div>
+            <div><b data-count="${t.sections.length}">${t.sections.length}</b><span>Topics</span></div>
+            <div><b data-count="${Math.round(t.words / 200 / 60)}">${Math.round(t.words / 200 / 60)}</b><span>Hours of reading</span></div>
+            <div class="ring" style="--p:${pct}"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="16" class="fg"/></svg><span><b>${pct}%</b><small>${d}/${t.count} read</small></span></div>
+          </div>
+          <div class="ch-links">
+            ${t.status ? `<span class="status">${esc(t.status)}</span>` : ''}
+            <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener" target="_blank">${ic('github')}View the repository</a>
+          </div>
         </div>
+        <div class="course-head-art">${V.courseArt(t.slug)}</div>
       </header>
-      <div class="chapters">
-        ${t.sections.map((s, i) => `
-          <section class="chapter reveal" style="--d:${i % 3}">
-            <h2>${esc(s.name)}<small>${s.notes.filter((n) => isRead(t, n.path)).length}/${s.notes.length}</small></h2>
-            <ol>${s.notes.map((n) => `
-              <li><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}"><span class="dot">${ic('check', 'tick')}</span><span class="c-title">${n.sub.length ? `<span class="sub">${esc(n.sub.join(' / '))} / </span>` : ''}${esc(n.title)}</span>
-              ${n.words ? `<small>${minutes(n.words)} min</small>` : ''}</a></li>`).join('')}
+
+      <div class="topic-bar">
+        <nav class="topic-chips" aria-label="Topics in this course">
+          ${t.sections.map((s, i) => `<a href="#topic-${i}">${ic(topicIcon(s.name))}<span>${esc(s.name)}</span><small>${s.notes.length}</small></a>`).join('')}
+        </nav>
+        <label class="topic-filter">${ic('search')}<input type="search" id="tfilter" placeholder="Filter ${t.count} notes" autocomplete="off" spellcheck="false" aria-label="Filter the notes in this course"></label>
+      </div>
+      <p class="filter-empty" id="tempty" hidden>No note in this course matches that. Try the search at the top for all courses.</p>
+
+      <div class="topics">
+        ${t.sections.map((s, i) => {
+          const done = s.notes.filter((n) => isRead(t, n.path)).length;
+          return `
+          <section class="topic reveal" id="topic-${i}" style="--d:${i % 2}">
+            <header class="topic-head">
+              <span class="topic-ico">${ic(topicIcon(s.name))}</span>
+              <div class="topic-title"><h2>${esc(s.name)}</h2><p>${s.notes.length} notes · ${fmtMin(secMin(s))}</p></div>
+              <div class="topic-prog"><span>${done}/${s.notes.length}</span><span class="pbar thin"><i style="--w:${Math.round((done / s.notes.length) * 100)}%"></i></span></div>
+            </header>
+            <ol class="topic-list">${s.notes.map((n, k) => `
+              <li${k >= SHOW ? ' class="more" hidden' : ''}><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}" data-hay="${esc([n.title, ...n.sub].join(' ').toLowerCase())}">
+                <span class="idx">${isRead(t, n.path) ? ic('check', 'tick') : String(k + 1).padStart(2, '0')}</span>
+                <span class="c-title">${n.sub.length ? `<span class="tag">${esc(n.sub.join(' / '))}</span>` : ''}${esc(n.title)}</span>
+                <small>${minutes(n.words || 200)} min</small>
+                <span class="go" aria-hidden="true">${ic('chev')}</span>
+              </a></li>`).join('')}
             </ol>
-          </section>`).join('')}
+            ${s.notes.length > SHOW ? `<button class="topic-more" type="button" aria-expanded="false">Show ${s.notes.length - SHOW} more</button>` : ''}
+          </section>`;
+        }).join('')}
       </div>
     </div>`;
     V.enhance(main);
     scrollTo(0, 0);
+
+    main.querySelectorAll('.topic-more').forEach((btn) => btn.addEventListener('click', () => {
+      const open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.closest('.topic').querySelectorAll('li.more').forEach((li) => { li.hidden = !open; });
+      btn.setAttribute('aria-expanded', String(open));
+      btn.textContent = open ? 'Show less' : `Show ${btn.closest('.topic').querySelectorAll('li.more').length} more`;
+    }));
+    const f = document.getElementById('tfilter');
+    f.addEventListener('input', () => {
+      const q = f.value.trim().toLowerCase();
+      let any = false;
+      main.querySelectorAll('.topic').forEach((sec) => {
+        let hits = 0;
+        sec.querySelectorAll('li').forEach((li) => {
+          const ok = !q || li.firstElementChild.dataset.hay.includes(q);
+          li.hidden = q ? !ok : li.classList.contains('more') && sec.querySelector('.topic-more')?.getAttribute('aria-expanded') !== 'true';
+          if (ok) hits += 1;
+        });
+        sec.hidden = !!q && !hits;
+        sec.classList.toggle('filtering', !!q);
+        if (hits) any = true;
+      });
+      document.getElementById('tempty').hidden = any;
+    });
   }
 
   /* ---------- note page ---------- */
