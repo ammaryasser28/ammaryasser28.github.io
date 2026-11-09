@@ -152,6 +152,7 @@
     try { id = decodeURIComponent(id); } catch (e) { /* keep raw */ }
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
+    if (el && el.classList.contains('topic')) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
   }
 
   function route() {
@@ -201,7 +202,7 @@
             <p class="hello">Welcome, I'm</p>
             <h1>Bn Yasser</h1>
             <p class="role">SOC Analyst</p>
-            <p class="ar" dir="rtl" lang="ar">ملاحظات البلو تيم، مشروحة بالعربي.</p>
+            <p class="tagline">Documenting everything I learn in blue team, so others can learn it faster.</p>
             <p class="bio">${total} notes from four security courses, from networking basics to SANS SEC450. I build hands-on SOC labs and write up everything I study, so it can be read again before an investigation or an interview.</p>
             <div class="actions">
               <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
@@ -332,14 +333,30 @@
   const topicIcon = (name) => (TOPIC_ICONS.find(([re]) => re.test(name)) || [0, 'layers'])[1];
   const fmtMin = (m) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ''}` : `${m} min`).trim();
   const SHOW = 6;
+  // a course with only a couple of big folders is split one level deeper, so each topic stays readable
+  function topicsOf(t) {
+    if (t.sections.length >= 4 || t.sections.every((s) => s.notes.length <= 12)) return t.sections.map((s) => ({ name: s.name, notes: s.notes.map((n) => ({ ...n, tagSub: n.sub })) }));
+    const out = [];
+    t.sections.forEach((s) => {
+      const groups = new Map();
+      s.notes.forEach((n) => {
+        const k = n.sub[0] || s.name;
+        if (!groups.has(k)) groups.set(k, []);
+        groups.get(k).push({ ...n, tagSub: n.sub.slice(1) });
+      });
+      groups.forEach((notes, name) => out.push({ name, notes }));
+    });
+    return out;
+  }
 
   function renderTrack(t) {
     setTitle(t.name);
     const d = readCount(t);
     const pct = Math.round((d / t.count) * 100);
     const secMin = (s) => s.notes.reduce((a, n) => a + minutes(n.words || 200), 0);
+    const topics = topicsOf(t);
     main.innerHTML = `
-    <div class="page course-page">
+    <div class="page course-page" data-c="${t.slug}">
       <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
       <header class="course-hero reveal">
         <div class="ch-text">
@@ -348,7 +365,7 @@
           <p class="blurb">${esc(t.blurb)}</p>
           <div class="ch-stats">
             <div><b data-count="${t.count}">${t.count}</b><span>Notes</span></div>
-            <div><b data-count="${t.sections.length}">${t.sections.length}</b><span>Topics</span></div>
+            <div><b data-count="${topics.length}">${topics.length}</b><span>Topics</span></div>
             <div><b data-count="${Math.round(t.words / 200 / 60)}">${Math.round(t.words / 200 / 60)}</b><span>Hours of reading</span></div>
             <div class="ring" style="--p:${pct}"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="16" class="fg"/></svg><span><b>${pct}%</b><small>${d}/${t.count} read</small></span></div>
           </div>
@@ -357,19 +374,19 @@
             <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener" target="_blank">${ic('github')}View the repository</a>
           </div>
         </div>
-        <div class="course-head-art">${V.courseArt(t.slug)}</div>
+        ${V.courseMap(t.slug, topics.map((s) => ({ name: s.name, count: s.notes.length })))}
       </header>
 
       <div class="topic-bar">
         <nav class="topic-chips" aria-label="Topics in this course">
-          ${t.sections.map((s, i) => `<a href="#topic-${i}">${ic(topicIcon(s.name))}<span>${esc(s.name)}</span><small>${s.notes.length}</small></a>`).join('')}
+          ${topics.map((s, i) => `<a href="#topic-${i}">${ic(topicIcon(s.name))}<span>${esc(s.name)}</span><small>${s.notes.length}</small></a>`).join('')}
         </nav>
         <label class="topic-filter">${ic('search')}<input type="search" id="tfilter" placeholder="Filter ${t.count} notes" autocomplete="off" spellcheck="false" aria-label="Filter the notes in this course"></label>
       </div>
       <p class="filter-empty" id="tempty" hidden>No note in this course matches that. Try the search at the top for all courses.</p>
 
       <div class="topics">
-        ${t.sections.map((s, i) => {
+        ${topics.map((s, i) => {
           const done = s.notes.filter((n) => isRead(t, n.path)).length;
           return `
           <section class="topic reveal" id="topic-${i}" style="--d:${i % 2}">
@@ -379,9 +396,9 @@
               <div class="topic-prog"><span>${done}/${s.notes.length}</span><span class="pbar thin"><i style="--w:${Math.round((done / s.notes.length) * 100)}%"></i></span></div>
             </header>
             <ol class="topic-list">${s.notes.map((n, k) => `
-              <li${k >= SHOW ? ' class="more" hidden' : ''}><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}" data-hay="${esc([n.title, ...n.sub].join(' ').toLowerCase())}">
+              <li${k >= SHOW ? ' class="more" hidden' : ''}><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}" data-hay="${esc([n.title, ...n.sub, s.name].join(' ').toLowerCase())}">
                 <span class="idx">${isRead(t, n.path) ? ic('check', 'tick') : String(k + 1).padStart(2, '0')}</span>
-                <span class="c-title">${n.sub.length ? `<span class="tag">${esc(n.sub.join(' / '))}</span>` : ''}${esc(n.title)}</span>
+                <span class="c-title">${n.tagSub.length ? `<span class="tag">${esc(n.tagSub.join(' / '))}</span>` : ''}${esc(n.title)}</span>
                 <small>${minutes(n.words || 200)} min</small>
                 <span class="go" aria-hidden="true">${ic('chev')}</span>
               </a></li>`).join('')}
@@ -392,7 +409,24 @@
       </div>
     </div>`;
     V.enhance(main);
+    V.mapFx(main);
     scrollTo(0, 0);
+
+    // the map and the cards light each other up
+    const pair = (i, on) => {
+      main.querySelector(`#topic-${i}`)?.classList.toggle('hot', on);
+      main.querySelectorAll(`.cmap [data-t="${i}"]`).forEach((el) => el.classList.toggle('hot', on));
+    };
+    main.querySelectorAll('.cmap [data-t]').forEach((el) => {
+      el.addEventListener('pointerenter', () => pair(el.dataset.t, true));
+      el.addEventListener('pointerleave', () => pair(el.dataset.t, false));
+      el.addEventListener('focus', () => pair(el.dataset.t, true));
+      el.addEventListener('blur', () => pair(el.dataset.t, false));
+    });
+    main.querySelectorAll('.topic').forEach((sec, i) => {
+      sec.addEventListener('pointerenter', () => pair(i, true));
+      sec.addEventListener('pointerleave', () => pair(i, false));
+    });
 
     main.querySelectorAll('.topic-more').forEach((btn) => btn.addEventListener('click', () => {
       const open = btn.getAttribute('aria-expanded') !== 'true';
