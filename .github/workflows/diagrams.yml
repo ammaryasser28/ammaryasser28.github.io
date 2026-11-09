@@ -1,6 +1,7 @@
 # Keeps the site in step with the course repos, with nothing to do by hand.
-# Each course repo pings it on every push (repository_dispatch), and every ~10 minutes it also
-# asks GitHub for the latest commit of each course repo as a fallback. When one changed
+# Each course repo draws its own diagrams on every push (.github/workflows/notify-site.yml there,
+# saved in that repo's .site/). This one is the site-wide copy: it runs when the site's code
+# changes, and every ~10 minutes it asks GitHub for the latest commit of each course repo. When one changed
 # (a note added, edited, moved or deleted), it rebuilds data/manifest.json from the repos and
 # draws every Mermaid diagram ahead of time into diagrams/, then publishes the site.
 # Visitors see new notes even sooner: assets/app.js reads the repos live on each visit.
@@ -8,9 +9,6 @@ name: Update site from notes
 
 on:
   workflow_dispatch:
-  # sent by .github/workflows/notify-site.yml in each course repo the moment a note is pushed
-  repository_dispatch:
-    types: [notes-changed]
   schedule:
     - cron: '*/10 * * * *'
   push:
