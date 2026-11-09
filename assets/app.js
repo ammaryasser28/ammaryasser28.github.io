@@ -7,7 +7,7 @@
   const PHOTO = 'https://github.com/ammaryasser28.png?size=240';
   let DATA = null;
   let INDEX = [];
-  let DIAGRAMS = 658; // replaced by the count in diagrams/meta.json, which the workflow rewrites
+  let DIAGRAMS = 658; // replaced by the sum of each course repo's .site/meta.json, or the site's diagrams/meta.json
   const noteCache = new Map();
   const V = window.Visuals;
 
@@ -821,7 +821,11 @@
     const key = `${isDark() ? 'd' : 'l'}/${h36(`${t.slug}|${path}`)}`;
     if (window.__harvest) return Promise.resolve({});
     if (!preCache.has(key)) {
-      preCache.set(key, fetch(`diagrams/${key}.json`).then((r) => (r.ok ? r.json() : {})).catch(() => ({})));
+      // each course repo draws its own diagrams on every push (.site/diagrams in that repo); the
+      // site's own copy covers anything older. Both are keyed by the diagram's source, so they merge.
+      const get = (url) => fetch(url).then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+      preCache.set(key, Promise.all([get(`diagrams/${key}.json`), get(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/diagrams/${key}.json`)])
+        .then(([site, course]) => ({ ...site, ...course })));
     }
     return preCache.get(key);
   }
@@ -970,8 +974,13 @@
     .then((r) => r.json())
     .then(async (d) => {
       DATA = d;
-      const meta = fetch('diagrams/meta.json').then((r) => r.json()).then((m) => { if (m.diagrams > 0) DIAGRAMS = m.diagrams; }).catch(() => {});
       const live = Promise.allSettled(DATA.tracks.map(liveTrack));
+      const meta = live.then(() => Promise.all(DATA.tracks.map((t) => fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/meta.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null))))
+        .then(async (ms) => {
+          if (ms.every((m) => m && m.diagrams >= 0)) { DIAGRAMS = ms.reduce((a, m) => a + m.diagrams, 0); return; }
+          const m = await fetch('diagrams/meta.json').then((r) => r.json()).catch(() => null);
+          if (m && m.diagrams > 0) DIAGRAMS = m.diagrams;
+        });
       // wait briefly so the first screen is already up to date; a slow API never holds the page
       const inTime = await Promise.race([Promise.all([live, meta]).then(() => true), new Promise((r) => setTimeout(() => r(false), 1500))]);
       buildIndex();
