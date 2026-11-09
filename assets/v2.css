@@ -787,3 +787,11 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .nm-scan + .nm-bar.cur::before { left: 0; transform: none; }
 .nm-siem .nm-art { height: 156px; padding-top: 32px; }
 .nm-dots { padding-left: 4px; }
+/* diagram placeholder while it is being drawn */
+.diagram.pending { min-height: 220px; display: grid; place-items: center; background: var(--art-bg); }
+.diagram.pending pre.mermaid { visibility: hidden; position: absolute; inset: 0; overflow: hidden; margin: 0; }
+.diagram.pending::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--cobalt) 10%, transparent) 50%, transparent 70%); background-size: 220% 100%; animation: tile-sweep 1.6s linear infinite; }
+.diagram.pending::after { content: "Drawing the diagram…"; position: relative; font-size: 13.5px; color: var(--muted); padding-left: 26px; background: radial-gradient(circle at 8px 50%, var(--cobalt) 0 4px, transparent 5px); animation: flicker 1.4s ease-in-out infinite; }
+.note[data-c] .diagram.pending::before { background-image: linear-gradient(100deg, transparent 30%, var(--ac-soft) 50%, transparent 70%); }
+.note[data-c] .diagram.pending::after { background: radial-gradient(circle at 8px 50%, var(--ac) 0 4px, transparent 5px); }
+@media (prefers-reduced-motion: reduce) { .diagram.pending::before, .diagram.pending::after { animation: none; } }
