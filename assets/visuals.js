@@ -119,6 +119,67 @@ window.Visuals = (() => {
     </svg>`;
   }
 
+  /* ---------- course map: the course's own illustration, built from its topics ---------- */
+  function courseMap(slug, units) {
+    const n = units.length;
+    const e = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const head = (title, hint) => `<div class="cm-head"><span class="cm-live"></span><b>${title}</b><small>${hint}</small></div>`;
+    const item = (u, i, cls, inner) => `<a class="cm-item ${cls}" href="#topic-${i}" data-t="${i}" style="--i:${i};--n:${n}">${inner}</a>`;
+    if (slug === 'pre-security') {
+      return `<div class="cmap cm-layers" aria-label="Course map">
+        ${head('Course stack', `${n} layers, from the first to the last topic`)}
+        <div class="cm-body"><span class="cm-packet" aria-hidden="true"></span><span class="cm-packet late" aria-hidden="true"></span>
+          ${units.map((u, i) => item(u, i, 'cm-layer', `<span class="cm-no">L${i + 1}</span><span class="cm-name">${e(u.name)}</span><span class="cm-count">${u.count} notes</span>`)).join('')}
+        </div></div>`;
+    }
+    if (slug === 'intro') {
+      return `<div class="cmap cm-cipher" aria-label="Course map">
+        ${head('Decrypted topics', `${n} blocks. Hover one to decrypt it again`)}
+        <div class="cm-body">
+          ${units.map((u, i) => item(u, i, 'cm-tile', `<svg class="cm-lock" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><span class="cm-name" data-text="${e(u.name)}">${e(u.name)}</span><span class="cm-count">${u.count} notes</span>`)).join('')}
+        </div></div>`;
+    }
+    if (slug === 'essentials') {
+      const R = (i) => 22 + (i + 1) * (88 / n);
+      return `<div class="cmap cm-rings" aria-label="Course map">
+        ${head('Defense in depth', `${n} layers of defense. Hover one to find its ring`)}
+        <div class="cm-body">
+          <svg class="cm-ringart" viewBox="-120 -120 240 240" aria-hidden="true">
+            ${units.map((u, i) => `<circle r="${R(n - 1 - i).toFixed(1)}" class="cm-ring" data-t="${i}" style="--i:${i}"/>`).join('')}
+            <path d="M0 -15 l12 5 v9 c0 9 -5 14 -12 17 c-7 -3 -12 -8 -12 -17 v-9z" class="cm-shield"/>
+            <g class="cm-attack"><path d="M-118 0 H-112" class="cm-arrow"/><circle r="4" class="cm-hit"/></g>
+          </svg>
+          <ol class="cm-legend">${units.map((u, i) => `<li>${item(u, i, 'cm-ringitem', `<span class="cm-dot"></span><span class="cm-name">${e(u.name)}</span><span class="cm-count">${u.count}</span>`)}</li>`).join('')}</ol>
+        </div></div>`;
+    }
+    const max = Math.max(...units.map((u) => u.count));
+    return `<div class="cmap cm-siem" aria-label="Course map">
+      ${head('Topic volume', `notes per topic, like events per source`)}
+      <div class="cm-body"><span class="cm-scan" aria-hidden="true"></span>
+        ${units.map((u, i) => item(u, i, `cm-row${u.count === max ? ' peak' : ''}`, `<span class="cm-name">${e(u.name)}</span><span class="cm-track"><i style="--w:${Math.round((u.count / max) * 100)}%"></i></span><span class="cm-count">${u.count}</span>`)).join('')}
+      </div></div>`;
+  }
+
+  // intro map: each name decrypts from hex when it scrolls in, and again on hover
+  function mapFx(root) {
+    const names = [...root.querySelectorAll('.cm-cipher .cm-name')];
+    if (!names.length || reduce()) return;
+    const HEX = '0123456789ABCDEF';
+    const run = (el) => {
+      const txt = el.dataset.text; let f = 0; const total = 18;
+      clearInterval(el._t);
+      el._t = setInterval(() => {
+        f += 1;
+        const keep = Math.floor((f / total) * txt.length);
+        el.textContent = txt.split('').map((c, i) => (i < keep || c === ' ' ? c : HEX[(Math.random() * 16) | 0])).join('');
+        if (f >= total) { clearInterval(el._t); el.textContent = txt; }
+      }, 40);
+    };
+    const ob = new IntersectionObserver((en) => en.forEach((x) => { if (x.isIntersecting) { names.forEach((el, i) => setTimeout(() => run(el), i * 110)); ob.disconnect(); } }), { threshold: 0.3 });
+    ob.observe(root.querySelector('.cm-cipher'));
+    names.forEach((el) => el.closest('.cm-item').addEventListener('pointerenter', () => run(el)));
+  }
+
   /* ---------- small line icons ---------- */
   const ICONS = {
     log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -324,5 +385,5 @@ window.Visuals = (() => {
     }
   }
 
-  return { heroArt, courseArt, noteBanner, icon, monogram, enhance, diagram, reveal };
+  return { heroArt, courseArt, noteBanner, courseMap, mapFx, icon, monogram, enhance, diagram, reveal };
 })();
