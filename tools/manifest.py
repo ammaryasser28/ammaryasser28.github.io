@@ -1,11 +1,14 @@
 """Builds data/manifest.json, the notes index, from clones of the course repos.
 
 Run by .github/workflows/diagrams.yml:  python3 tools/manifest.py <folder with the clones> data/manifest.json
+A course repo's workflow rebuilds only its own course inside an existing manifest:
+  python3 tools/manifest.py <folder with that clone> data/manifest.json <slug>
 assets/app.js rebuilds a course with the same rules from GitHub's API on every visit, so keep the two in step.
 To add a course, add it to TRACKS here and in the workflow, and give it a colour in assets/v2.css."""
 import json, os, re, subprocess, sys
 
 SRC, OUT = sys.argv[1], sys.argv[2]
+ONLY = sys.argv[3] if len(sys.argv) > 3 else None
 
 TRACKS = [
     dict(slug="pre-security", repo="Pre-Security", clone="pre-security",
@@ -46,7 +49,14 @@ ARABIC = re.compile(r"[؀-ۿ]")
 WORD = re.compile(r"\S+")
 
 data = {"owner": "ammaryasser28", "branch": "main", "tracks": []}
+old = {}
+if ONLY:
+    old = {x["slug"]: x for x in json.load(open(OUT, encoding="utf-8"))["tracks"]}
+    assert ONLY in old, f"unknown course {ONLY}"
 for t in TRACKS:
+    if ONLY and t["slug"] != ONLY:
+        data["tracks"].append(old[t["slug"]])
+        continue
     root = os.path.join(SRC, t["clone"])
     sections, loose = {}, []
     for dirpath, dirnames, filenames in os.walk(root):
