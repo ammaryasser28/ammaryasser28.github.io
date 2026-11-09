@@ -464,7 +464,7 @@
     <div class="reader3">
       <article class="note">
         <header class="note-head">
-          <div class="note-art" aria-hidden="true">${V.courseArt(t.slug).replace('<svg ', '<svg preserveAspectRatio="xMidYMid slice" ')}</div>
+          <div class="note-art" aria-hidden="true">${V.noteBanner(t.slug)}</div>
           <p class="crumbs"><a href="./">Dashboard</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
           <h1>${esc(n.title)}</h1>
           <div class="meta">
