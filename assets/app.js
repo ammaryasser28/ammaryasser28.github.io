@@ -446,6 +446,7 @@
         if (!n.isConnected) return;
         try { await mm.run({ nodes: [n] }); }
         catch (e) { n.classList.add('failed'); n.closest('.diagram')?.classList.add('as-code'); }
+        const svg = n.querySelector('svg'); const vb = svg && svg.viewBox.baseVal; if (vb && vb.width) { svg.style.maxWidth = 'none'; svg.style.width = Math.round(vb.width) + 'px'; }
       }
     } catch (e) {
       nodes.forEach((n) => n.closest('.diagram')?.classList.add('as-code'));
