@@ -301,7 +301,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 
 /* note page */
 .reader3 { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; max-width: none; padding: 20px 28px 0 0; align-items: start; }
-.reader3 .note { width: 100%; max-width: none; margin: 0; padding: 8px 36px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; }
+.reader3 article.note { width: 100%; max-width: none; margin: 0; padding: 8px 36px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 20px; }
 .reader3 .prose, .reader3 .pager { max-width: none; }
 .reader3 .note-head { border-bottom: 1px solid var(--rule); }
 .note[dir="rtl"] .note-head h1, .note[dir="rtl"] .crumbs, .note[dir="rtl"] .note-head .meta { text-align: right; }
@@ -323,7 +323,8 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 /* ---------- interactive diagrams ---------- */
 .diagram { position: relative; margin: 26px 0; padding: 0; background: var(--art-bg); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; text-align: left; box-shadow: 0 18px 40px -32px rgb(20 32 46 / .5); }
 .diagram:hover { border-color: color-mix(in srgb, var(--cobalt) 45%, var(--rule)); }
-.dg-port { overflow: auto; max-height: 78vh; padding: 22px 18px; text-align: center; overscroll-behavior: contain; scrollbar-width: thin; }
+/* the whole diagram is shown at its height: no scroll box inside the page that traps the mouse wheel; only a diagram wider than the column scrolls sideways */
+.dg-port { overflow-x: auto; overflow-y: hidden; padding: 22px 18px; text-align: center; scrollbar-width: thin; }
 .dg-port svg { display: inline-block; max-width: none !important; transition: width .25s ease, height .25s ease; }
 .diagram.pannable .dg-port { cursor: grab; }
 .diagram.dragging .dg-port { cursor: grabbing; user-select: none; }
@@ -337,25 +338,30 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .dg-tools svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .dg-zoom { font: 500 12px var(--mono); color: var(--muted); padding: 0 6px; min-width: 44px; text-align: center; }
 .diagram:fullscreen { background: var(--paper); border-radius: 0; display: flex; flex-direction: column; }
-.diagram:fullscreen .dg-port { max-height: none; flex: 1; display: grid; place-items: center; }
+.diagram:fullscreen .dg-port { max-height: none; flex: 1; display: grid; place-items: center; overflow: auto; }
 
 /* draw-in */
-.diagram.pre-draw path.flowchart-link { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
+.diagram.pre-draw path.dg-edge { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
 .diagram.pre-draw g.node { opacity: 0; }
 .diagram.pre-draw .edgeLabel { opacity: 0; }
-.diagram.pre-draw path.flowchart-link { marker-end: none; marker-start: none; }
-.diagram.drawn path.flowchart-link { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease; transition-delay: calc(.25s + var(--i) * 70ms); }
+.diagram.pre-draw path.dg-edge { marker-end: none; marker-start: none; }
+.diagram.drawn path.dg-edge { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease; transition-delay: calc(.25s + var(--i) * 70ms); }
 .diagram.drawn g.node { opacity: 1; transition: opacity .5s ease; transition-delay: calc(var(--i, 0) * 60ms); }
 .diagram.drawn .edgeLabel { opacity: 1; transition: opacity .4s 1s; }
+.diagram.sq.pre-draw :is(g[data-et="participant"], line[data-et="life-line"], [data-et="message"], text.messageText, g[data-et="note"]) { opacity: 0; }
+.diagram.sq.drawn :is(g[data-et="participant"], line[data-et="life-line"], [data-et="message"], text.messageText, g[data-et="note"]) { opacity: 1; transition: opacity .45s ease; transition-delay: calc(var(--i, 0) * 110ms); }
 
 /* hover focus */
-.diagram.interactive g.node { cursor: pointer; transition: opacity .25s, filter .25s; }
-.diagram.interactive path.flowchart-link { transition: opacity .25s, stroke-width .2s; }
-.diagram.focus g.node:not(.hl), .diagram.focus path.flowchart-link:not(.hl), .diagram.focus .edgeLabel { opacity: .22; }
+.diagram.interactive g.node, .diagram.sq g[data-et="participant"] { cursor: pointer; transition: opacity .25s, filter .25s; }
+.diagram.interactive path.dg-edge, .diagram.sq :is(line[data-et="life-line"], [data-et="message"], text.messageText, g[data-et="note"]) { transition: opacity .25s, stroke-width .2s; }
+.diagram.focus g.node:not(.hl), .diagram.focus path.dg-edge:not(.hl), .diagram.focus .edgeLabel { opacity: .22; }
+.diagram.sq.focus :is(g[data-et="participant"], line[data-et="life-line"], [data-et="message"], text.messageText):not(.hl), .diagram.sq.focus g[data-et="note"] { opacity: .2; }
+/* hovering during the draw-in reacts at once instead of waiting for each item's turn */
+.diagram.focus :is(g.node, path.dg-edge, .edgeLabel, g[data-et="participant"], line[data-et="life-line"], [data-et="message"], text.messageText, g[data-et="note"]) { transition: opacity .2s, stroke-width .2s !important; }
 .diagram.focus g.node.hl { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--cobalt) 60%, transparent)); }
-.diagram.focus path.flowchart-link.hl { stroke: var(--cobalt) !important; stroke-width: 2.5px !important; }
-.diagram path.flowchart-link.flow { stroke-dasharray: 7 5 !important; animation: flow .7s linear infinite; }
-.diagram path.flowchart-link.flow.rev { animation-direction: normal; }
+.diagram.focus path.dg-edge.hl { stroke: var(--cobalt) !important; stroke-width: 2.5px !important; }
+.diagram path.dg-edge.flow, .diagram line.messageLine0.flow { stroke-dasharray: 7 5 !important; animation: flow .7s linear infinite; }
+.diagram path.dg-edge.flow.rev { animation-direction: normal; }
 @keyframes flow { to { stroke-dashoffset: -24; } }
 .diagram.as-code { background: #14202e; }
 .diagram.as-code pre.mermaid { color: #e4e9f0; font: 14px/1.6 var(--mono); white-space: pre; padding: 16px; margin: 0; }
@@ -385,7 +391,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
   .theme { width: 36px; height: 36px; }
   .me-chip { padding: 3px; }
   .page, .reader3 { padding: 20px 16px 56px; }
-  .reader3 .note { padding: 4px 16px 0; border-radius: 16px; }
+  .reader3 article.note { padding: 4px 16px 0; border-radius: 16px; }
   .dg-title small { display: none; }
   .welcome-me { flex-direction: column; text-align: center; padding: 24px 18px; }
   .actions { justify-content: center; }
@@ -782,7 +788,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .nm-bar span { font: 600 12px "IBM Plex Mono", monospace; color: #fff; padding: 2px 6px; border-radius: 5px; background: rgb(0 0 0 / .25); }
 .nm-siem .nm-art { height: 130px; }
 @media (max-width: 720px) { .nm-rings .nm-art { justify-content: center; } }
-.reader3 .note { container-type: inline-size; }
+.reader3 article.note { container-type: inline-size; }
 @container (max-width: 820px) { .note-map { grid-template-columns: 1fr; } }
 .nm-bar.cur:last-child::before { left: auto; right: 0; transform: none; }
 .nm-scan + .nm-bar.cur::before { left: 0; transform: none; }
@@ -819,7 +825,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .note[data-c] .diagram svg :is(rect.actor, .actor-box) { fill: color-mix(in srgb, var(--ac) 9%, var(--surface)) !important; stroke: color-mix(in srgb, var(--ac) 55%, var(--rule)) !important; }
 .note[data-c] .diagram svg :is(line.actor-line, .actor-line) { stroke: color-mix(in srgb, var(--ac) 30%, var(--rule)) !important; }
 .note[data-c] .diagram svg .note rect, .note[data-c] .diagram svg rect.note { fill: color-mix(in srgb, var(--marker) 14%, var(--surface)) !important; stroke: color-mix(in srgb, var(--marker) 60%, var(--rule)) !important; }
-.note[data-c] .diagram.focus path.flowchart-link.hl { stroke: var(--ac) !important; stroke-width: 2.6px !important; }
+.note[data-c] .diagram.focus path.dg-edge.hl { stroke: var(--ac) !important; stroke-width: 2.6px !important; }
 .note[data-c] .diagram.focus g.node.hl { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ac) 60%, transparent)); }
 .note[data-c] .diagram.focus g.node.hl :is(rect, path.basic, .label-container, circle, polygon) { stroke: var(--ac) !important; stroke-width: 2.2px !important; fill: color-mix(in srgb, var(--ac) 20%, var(--surface)) !important; }
 /* a soft dotted canvas behind every diagram */
@@ -829,3 +835,30 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .prose .diagram svg foreignObject p { margin: 0; }
 .diagram svg foreignObject { overflow: visible; }
 .prose .diagram svg foreignObject * { overflow-wrap: normal; word-break: normal; hyphens: manual; }
+
+/* ---------- every diagram in the course's colour: chrome, mindmaps, sequence hover ---------- */
+.note[data-c] .diagram:hover { border-color: color-mix(in srgb, var(--ac) 45%, var(--rule)); }
+.note[data-c] .dg-title > svg { color: var(--ac); }
+.note[data-c] .dg-tools button:hover { background: var(--ac-soft); color: var(--ac); }
+.note[data-c] .diagram svg .mindmap-node path.node-bkg { fill: color-mix(in srgb, var(--ac) 12%, var(--surface)) !important; stroke: color-mix(in srgb, var(--ac) 55%, var(--rule)) !important; stroke-width: 1.5px !important; }
+.note[data-c] .diagram svg .mindmap-node line { stroke: color-mix(in srgb, var(--ac) 55%, var(--rule)) !important; }
+.note[data-c] .diagram svg .mindmap-node.section-root :is(circle, rect, path) { fill: color-mix(in srgb, var(--ac) 26%, var(--surface)) !important; stroke: var(--ac) !important; stroke-width: 2px !important; }
+.note[data-c] .diagram svg .mindmap-node :is(.nodeLabel, .nodeLabel p, text) { color: var(--ink) !important; fill: var(--ink) !important; }
+.note[data-c] .diagram svg path.edge[class*="section-edge"] { stroke: color-mix(in srgb, var(--ac) 60%, var(--muted)) !important; }
+.note[data-c] .diagram.focus .mindmap-node.hl path.node-bkg { stroke: var(--ac) !important; stroke-width: 2.2px !important; fill: color-mix(in srgb, var(--ac) 22%, var(--surface)) !important; }
+.note[data-c] .diagram.sq.focus g[data-et="participant"].hl rect { stroke: var(--ac) !important; stroke-width: 2.2px !important; fill: color-mix(in srgb, var(--ac) 20%, var(--surface)) !important; }
+.note[data-c] .diagram.sq.focus g[data-et="participant"].hl { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ac) 55%, transparent)); }
+.note[data-c] .diagram.sq.focus line[data-et="life-line"].hl { stroke: var(--ac) !important; stroke-width: 1.6px !important; }
+.note[data-c] .diagram.sq.focus [data-et="message"].hl { stroke: var(--ac) !important; stroke-width: 2.6px !important; }
+.note[data-c] .diagram.sq.focus text.messageText.hl { fill: var(--ac) !important; font-weight: 600; }
+.note[data-c] .diagram svg text.messageText { fill: var(--ink) !important; }
+.note[data-c] .diagram svg :is(text.actor, text.actor tspan) { fill: var(--ink) !important; }
+.note[data-c] .diagram svg :is(text.noteText, text.noteText tspan) { fill: var(--ink) !important; }
+
+/* a diagram wider than the column: fade the cut edge so it reads as "more this way", not as a cropped picture */
+.diagram.pannable .dg-port { scroll-behavior: auto; }
+.diagram:not(.pending)::before, .diagram:not(.pending)::after { content: ""; position: absolute; top: 47px; bottom: 0; width: 56px; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 1; }
+.diagram:not(.pending)::before { left: 0; background: linear-gradient(90deg, var(--art-bg), transparent); }
+.diagram:not(.pending)::after { right: 0; background: linear-gradient(-90deg, var(--art-bg), transparent); }
+.diagram.more-l:not(.pending)::before, .diagram.more-r:not(.pending)::after { opacity: 1; }
+.diagram:fullscreen::before, .diagram:fullscreen::after { display: none; }
