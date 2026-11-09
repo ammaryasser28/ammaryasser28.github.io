@@ -1,17 +1,20 @@
-# Draws every diagram of every note ahead of time and saves the SVGs in diagrams/,
-# so visitors get finished diagrams instantly instead of drawing them in their browser.
-name: Pre-render diagrams
+# Keeps the site in step with the course repos, with nothing to do by hand.
+# Every ~10 minutes it asks GitHub for the latest commit of each course repo. When one changed
+# (a note added, edited, moved or deleted), it rebuilds data/manifest.json from the repos and
+# draws every Mermaid diagram ahead of time into diagrams/, then publishes the site.
+# Visitors see new notes even sooner: assets/app.js reads the repos live on each visit.
+name: Update site from notes
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '17 2 * * *'
+    - cron: '*/10 * * * *'
   push:
     branches: [main]
     paths:
       - 'assets/app.js'
-      - 'data/manifest.json'
       - 'tools/prerender.mjs'
+      - 'tools/manifest.py'
       - '.github/workflows/diagrams.yml'
 
 permissions:
@@ -19,44 +22,75 @@ permissions:
   pages: write
 
 concurrency:
-  group: prerender-diagrams
-  cancel-in-progress: true
+  group: update-site
+  cancel-in-progress: false
 
 jobs:
-  render:
+  update:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check the course repos for changes
+        id: check
+        run: |
+          changed=false
+          [ "${{ github.event_name }}" != "schedule" ] && changed=true
+          for pair in $(python3 -c "import json; [print(t['repo'] + '=' + (t.get('sha') or 'none')) for t in json.load(open('data/manifest.json'))['tracks']]"); do
+            repo="${pair%%=*}"; old="${pair#*=}"
+            new="$(git ls-remote "https://github.com/${{ github.repository_owner }}/$repo.git" refs/heads/main | cut -f1)"
+            echo "$repo: site has $old, repo is at $new"
+            if [ -n "$new" ] && [ "$new" != "$old" ]; then changed=true; fi
+          done
+          # GitHub switches scheduled runs off after 60 days without a commit, so refresh at least monthly
+          age=$(( $(date +%s) - $(git log -1 --format=%ct) ))
+          if [ "$age" -gt $(( 30 * 86400 )) ]; then changed=true; fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild the notes index
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/notes"
+          for repo in Pre-Security Introduction-To-Cyber-Security Cyber-Security-Essentials SEC450; do
+            dir="$RUNNER_TEMP/notes/$(echo "$repo" | tr '[:upper:]' '[:lower:]')"
+            git clone --depth 1 --branch main "https://github.com/${{ github.repository_owner }}/$repo.git" "$dir"
+          done
+          python3 tools/manifest.py "$RUNNER_TEMP/notes" data/manifest.json
+
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.changed == 'true'
         with:
           node-version: 20
 
       - name: Install the headless browser
+        if: steps.check.outputs.changed == 'true'
         run: |
           npm install --no-save --no-package-lock playwright@1.49.1
           npx playwright install --with-deps chromium
 
       - name: Draw all diagrams
-        run: node tools/prerender.mjs
+        if: steps.check.outputs.changed == 'true'
+        run: NOTES_DIR="$RUNNER_TEMP/notes" node tools/prerender.mjs
 
       - name: Save the result
         id: save
+        if: steps.check.outputs.changed == 'true'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add diagrams
+          git add data/manifest.json diagrams
           if git diff --cached --quiet; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "Pre-render diagrams"
+            git commit -m "Update notes index and diagrams"
+            git pull --rebase origin main
             git push
-            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Publish the site
-        if: steps.save.outputs.changed == 'true'
+        if: steps.save.outputs.pushed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh api -X POST "repos/${{ github.repository }}/pages/builds" || echo "Pages will pick up the commit on its own"
