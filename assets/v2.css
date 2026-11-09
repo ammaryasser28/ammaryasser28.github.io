@@ -715,3 +715,69 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes beam { 0% { transform: translateX(-30%) scaleX(.2); opacity: 0; } 20% { opacity: .7; } 100% { transform: translateX(60%) scaleX(.5); opacity: 0; } }
 .profile .welcome-me { background: none; }
 @media (prefers-reduced-motion: reduce) { .profile-bg::before, .profile-bg::after, .profile-bg .beam { animation: none; } }
+/* ---------- note header map: same animation as its course ---------- */
+.note-map { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 320px); gap: 22px; align-items: stretch; margin: 20px 0 22px; padding: 16px; border-radius: 16px; border: 1px solid var(--rule); background: var(--art-bg); position: relative; overflow: hidden; isolation: isolate; }
+.note-map::before { content: ""; position: absolute; inset: 0; z-index: -1; background-image: linear-gradient(var(--art-line) 1px, transparent 1px), linear-gradient(90deg, var(--art-line) 1px, transparent 1px); background-size: 22px 22px; opacity: .22; }
+.nm-art { position: relative; min-height: 120px; display: flex; align-items: center; }
+.nm-info { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 12px 16px; border-radius: 12px; background: color-mix(in srgb, var(--surface) 80%, transparent); border: 1px solid var(--rule); text-align: left; }
+.nm-info small { font-size: 12.5px; color: var(--muted); }
+.nm-name { font-size: 16px; font-weight: 600; color: var(--ac); text-decoration: none; line-height: 1.3; }
+.nm-name:hover { text-decoration: underline; }
+.nm-dots { display: flex; flex-wrap: wrap; gap: 5px; margin: 2px 0; }
+.nm-dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ac-line); }
+.nm-dots i.done { background: var(--ac-line); border-color: transparent; }
+.nm-dots i.now { background: var(--ac); border-color: var(--ac); box-shadow: 0 0 0 4px var(--ac-soft); animation: live 2s ease-out infinite; }
+.nm-i { position: relative; display: grid; place-items: center; text-decoration: none; color: var(--muted); animation: cm-in .5s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i) * 70ms + 150ms); transition: transform .25s, background .25s, border-color .25s, color .25s; }
+
+/* layers */
+.nm-layers .nm-art { flex-direction: column; align-items: stretch; justify-content: center; gap: 5px; padding-left: 26px; }
+.nm-layers .nm-art::before { content: ""; position: absolute; left: 9px; top: 6px; bottom: 6px; border-left: 2px dashed var(--art-line); }
+.nm-layer { height: 18px; border-radius: 6px; border: 1px solid var(--ac-line); background: color-mix(in srgb, var(--surface) 70%, transparent); margin-right: calc((var(--n) - 1 - var(--i)) * 3%); place-items: center start; padding-left: 10px; font: 500 11.5px var(--font); overflow: hidden; white-space: nowrap; }
+.nm-layer b { font: 600 10.5px "IBM Plex Mono", monospace; color: var(--ac); margin-right: 10px; }
+.nm-layer::after { content: ""; position: absolute; inset: 0; background: var(--ac-soft); opacity: 0; animation: layer-wave 4.2s ease-in-out infinite; animation-delay: calc(var(--i) * .5s); }
+.nm-layer.cur { border-color: var(--ac); background: var(--ac-soft); color: var(--ac); box-shadow: 0 0 18px -4px var(--ac); }
+.nm-layer:hover { transform: translateX(4px); color: var(--ac); }
+.nm-packet { position: absolute; left: 5px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--ac); box-shadow: 0 0 10px var(--ac); animation: drop 4.2s cubic-bezier(.5,0,.5,1) infinite; }
+.nm-packet.late { animation-delay: 2.1s; background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+
+/* cipher */
+.nm-cipher .nm-art { display: grid; grid-template-columns: repeat(var(--cols, 8), minmax(0, 1fr)); gap: 10px; align-content: center; }
+.nm-tile { height: 84px; border-radius: 10px; border: 1px solid var(--ac-line); background: color-mix(in srgb, var(--surface) 70%, transparent); font: 600 14px "IBM Plex Mono", monospace; overflow: hidden; }
+.nm-tile span { animation: flicker 2.8s steps(1) infinite; animation-delay: calc(var(--i) * .35s); color: var(--ac); opacity: .7; }
+.nm-tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, var(--ac-soft) 50%, transparent 70%); background-size: 250% 100%; animation: tile-sweep 5s linear infinite; animation-delay: calc(var(--i) * .35s); }
+.nm-tile.cur { background: var(--ac); border-color: var(--ac); box-shadow: 0 10px 26px -10px var(--ac); }
+.nm-tile.cur svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.nm-tile:hover { transform: translateY(-3px); border-color: var(--ac); }
+
+/* rings */
+.nm-rings .nm-art { justify-content: flex-start; gap: 22px; }
+.nm-legend { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px 14px; }
+.nm-li { display: flex; align-items: center; gap: 8px; place-items: unset; justify-content: start; padding: 3px 8px; border-radius: 6px; font-size: 12.5px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nm-li i { flex: none; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ac); }
+.nm-li.cur { color: var(--ac); background: var(--ac-soft); font-weight: 600; }
+.nm-li.cur i { background: var(--ac); }
+.nm-li:hover { color: var(--ac); }
+.nm-rings svg { width: 132px; height: 132px; overflow: visible; }
+.nm-ring { fill: none; stroke: var(--ac-line); stroke-width: 1.6; animation: ring-breathe 5s ease-in-out infinite; animation-delay: calc(var(--i) * .3s); }
+.nm-ring.cur { stroke: var(--ac); stroke-width: 3.5; animation: none; filter: drop-shadow(0 0 4px var(--ac)); }
+.nm-shield { fill: var(--ac); }
+.nm-attack { animation: attack-s 3.2s cubic-bezier(.5,0,.3,1) infinite; }
+.nm-attack path { stroke: var(--danger); stroke-width: 2.5; stroke-linecap: round; }
+.nm-attack circle { fill: var(--danger); }
+@keyframes attack-s { 0% { transform: translateX(0); opacity: 0; } 15% { opacity: 1; } 55% { transform: translateX(8px); opacity: 1; } 70%, 100% { transform: translateX(8px); opacity: 0; } }
+
+/* siem */
+.nm-siem .nm-art { align-items: flex-end; gap: 10px; padding: 10px 8px 4px; border-bottom: 1.5px solid var(--art-line); }
+.nm-bar { flex: 1; max-width: 220px; place-items: end center; padding-bottom: 8px; height: var(--h); border-radius: 6px 6px 2px 2px; background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--ac) 55%, transparent) 0 6px, color-mix(in srgb, var(--ac) 35%, transparent) 6px 8px); transform-origin: bottom; animation: grow 1s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i) * 120ms + 150ms); }
+.nm-bar.cur { background: repeating-linear-gradient(0deg, var(--danger) 0 6px, color-mix(in srgb, var(--danger) 70%, transparent) 6px 8px); box-shadow: 0 0 20px -6px var(--danger); }
+.nm-bar.cur::before { content: "You are here"; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 2px 8px; border-radius: 6px; border: 1px solid var(--danger); font: 600 11px var(--font); color: var(--danger); background: var(--surface); }
+.nm-bar:hover { filter: brightness(1.2); }
+.nm-scan { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: linear-gradient(transparent, var(--ac), transparent); opacity: .5; animation: sweep-x 5s linear infinite; }
+
+.note[dir="rtl"] .note-map { direction: ltr; }
+@media (max-width: 1100px) { .note-map { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .nm-art { min-height: 96px; } .nm-legend { display: none; } .nm-tile { height: 52px; } .nm-cipher .nm-art { gap: 6px; } }
+@media (prefers-reduced-motion: reduce) { .nm-i, .nm-layer::after, .nm-packet, .nm-tile span, .nm-tile::after, .nm-ring, .nm-attack, .nm-bar, .nm-scan, .nm-dots i.now { animation: none; } }
+.nm-bar span { font: 600 12px "IBM Plex Mono", monospace; color: #fff; padding: 2px 6px; border-radius: 5px; background: rgb(0 0 0 / .25); }
+.nm-siem .nm-art { height: 130px; }
+@media (max-width: 720px) { .nm-rings .nm-art { justify-content: center; } }
