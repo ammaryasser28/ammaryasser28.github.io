@@ -342,7 +342,8 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 /* draw-in */
 .diagram.pre-draw path.flowchart-link { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
 .diagram.pre-draw g.node { opacity: 0; transform-box: fill-box; transform-origin: center; transform: scale(.85); }
-.diagram.pre-draw .edgeLabel, .diagram.pre-draw marker { opacity: 0; }
+.diagram.pre-draw .edgeLabel { opacity: 0; }
+.diagram.pre-draw path.flowchart-link { marker-end: none; marker-start: none; }
 .diagram.drawn path.flowchart-link { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease; transition-delay: calc(.25s + var(--i) * 70ms); }
 .diagram.drawn g.node { opacity: 1; transform: none; transition: opacity .45s ease, transform .45s cubic-bezier(.3,1.4,.5,1); transition-delay: calc(var(--i) * 60ms); }
 .diagram.drawn .edgeLabel { opacity: 1; transition: opacity .4s 1s; }
@@ -687,11 +688,11 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .profile-art { position: absolute; inset: 0 0 0 auto; width: min(62%, 900px); z-index: -1; opacity: .55; -webkit-mask: linear-gradient(90deg, transparent, #000 45%); mask: linear-gradient(90deg, transparent, #000 45%); }
 .profile-art .hero-art { width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .profile-art svg { width: 100%; height: 100%; }
-.focus { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 20px; border-radius: 18px; background: color-mix(in srgb, var(--paper) 78%, transparent); border: 1px solid var(--rule); backdrop-filter: blur(8px); }
+.focus-box { align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 20px; border-radius: 18px; background: color-mix(in srgb, var(--paper) 78%, transparent); border: 1px solid var(--rule); backdrop-filter: blur(8px); }
 .focus-h { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
-.focus ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 7px; }
-.focus li { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); font-size: 13px; font-weight: 500; animation: item-in .45s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--k) * 60ms + 300ms); transition: border-color .2s, color .2s; }
-.focus li:hover { border-color: var(--cobalt); color: var(--cobalt); }
+.focus-box ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 7px; }
+.focus-box li { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--rule); background: var(--surface); font-size: 13px; font-weight: 500; animation: item-in .45s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--k) * 60ms + 300ms); transition: border-color .2s, color .2s; }
+.focus-box li:hover { border-color: var(--cobalt); color: var(--cobalt); }
 .focus-now { --ac: var(--cobalt); display: flex; align-items: center; gap: 8px; margin: 4px 0 0; padding-top: 12px; border-top: 1px solid var(--rule); font-size: 13.5px; color: var(--muted); }
 .focus-now b { color: var(--ink); font-weight: 600; }
 .profile .welcome-me::after { right: auto; left: -160px; }
@@ -704,8 +705,8 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .up-next .c-title { flex: 1; min-width: 0; font-size: 14.5px; }
 .up-next small { color: var(--muted); font-size: 12.5px; }
 .continue-card[data-c]:hover { border-color: var(--ac); }
-@media (max-width: 1200px) { .profile .welcome-me { grid-template-columns: auto minmax(0, 1fr); } .focus { grid-column: 1 / -1; } }
-@media (max-width: 720px) { .profile .welcome-me { grid-template-columns: 1fr; padding: 26px 18px; text-align: center; justify-items: center; } .profile .tagline { text-align: start; } .profile-art { width: 100%; opacity: .18; } .focus { text-align: start; } }
+@media (max-width: 1200px) { .profile .welcome-me { grid-template-columns: auto minmax(0, 1fr); } .focus-box { grid-column: 1 / -1; } }
+@media (max-width: 720px) { .profile .welcome-me { grid-template-columns: 1fr; padding: 26px 18px; text-align: center; justify-items: center; } .profile .tagline { text-align: start; } .profile-art { width: 100%; opacity: .18; } .focus-box { text-align: start; } }
 .profile-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
 .profile-bg::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(var(--art-line) 1px, transparent 1px), linear-gradient(90deg, var(--art-line) 1px, transparent 1px); background-size: 28px 28px; opacity: .35; -webkit-mask: radial-gradient(70% 120% at 78% 50%, #000, transparent 75%); mask: radial-gradient(70% 120% at 78% 50%, #000, transparent 75%); animation: grid-pan 30s linear infinite; }
 @keyframes grid-pan { to { background-position: 28px 28px; } }
@@ -795,3 +796,25 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .note[data-c] .diagram.pending::before { background-image: linear-gradient(100deg, transparent 30%, var(--ac-soft) 50%, transparent 70%); }
 .note[data-c] .diagram.pending::after { background: radial-gradient(circle at 8px 50%, var(--ac) 0 4px, transparent 5px); }
 @media (prefers-reduced-motion: reduce) { .diagram.pending::before, .diagram.pending::after { animation: none; } }
+/* ---------- diagram look: shared by pre-drawn and live diagrams ---------- */
+.diagram svg .node rect, .diagram svg .node .label-container { rx: 10px; ry: 10px; }
+.diagram svg .node :is(rect, polygon, circle, ellipse, path) { stroke-width: 1.4px; filter: drop-shadow(0 6px 12px rgb(16 28 48 / .08)); transition: fill .25s, stroke .25s; }
+:root[data-theme="dark"] .diagram svg .node :is(rect, polygon, circle, ellipse, path) { filter: drop-shadow(0 8px 16px rgb(0 0 0 / .35)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .diagram svg .node :is(rect, polygon, circle, ellipse, path) { filter: drop-shadow(0 8px 16px rgb(0 0 0 / .35)); } }
+.diagram svg .cluster rect { rx: 14px; ry: 14px; stroke-dasharray: 5 4; stroke-width: 1.2px; }
+.diagram svg .edgeLabel rect, .diagram svg .labelBkg { rx: 6px; ry: 6px; }
+/* the course colour runs through the lines and borders */
+.note[data-c] .diagram svg .node :is(rect, polygon, circle, ellipse, path) { stroke: color-mix(in srgb, var(--ac) 50%, var(--rule)); }
+.note[data-c] .diagram svg :is(path.flowchart-link, .messageLine0, .messageLine1) { stroke: color-mix(in srgb, var(--ac) 62%, var(--muted)); }
+.note[data-c] .diagram svg marker :is(path, circle) { fill: color-mix(in srgb, var(--ac) 62%, var(--muted)); stroke: color-mix(in srgb, var(--ac) 62%, var(--muted)); }
+.note[data-c] .diagram svg :is(#arrowhead path, .arrowheadPath) { fill: color-mix(in srgb, var(--ac) 62%, var(--muted)); }
+.note[data-c] .diagram svg .actor { stroke: color-mix(in srgb, var(--ac) 50%, var(--rule)); }
+.note[data-c] .diagram svg g.node:hover :is(rect, polygon, circle, ellipse, path) { stroke: var(--ac); }
+.note[data-c] .diagram.focus path.flowchart-link.hl { stroke: var(--ac) !important; }
+.note[data-c] .diagram.focus g.node.hl { filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ac) 60%, transparent)); }
+.note[data-c] .diagram.focus g.node.hl :is(rect, polygon, circle, ellipse, path) { stroke: var(--ac); stroke-width: 2px; }
+/* labels keep exactly the text metrics they were measured with, so nothing gets cut */
+.prose .diagram svg foreignObject :is(p, div, span) { line-height: inherit; letter-spacing: normal; word-spacing: normal; }
+.prose .diagram svg foreignObject p { margin: 0; }
+.diagram svg foreignObject { overflow: visible; }
+.prose .diagram svg foreignObject * { overflow-wrap: normal; word-break: normal; hyphens: manual; }
