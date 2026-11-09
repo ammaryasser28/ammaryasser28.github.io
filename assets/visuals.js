@@ -180,6 +180,41 @@ window.Visuals = (() => {
     names.forEach((el) => el.closest('.cm-item').addEventListener('pointerenter', () => run(el)));
   }
 
+  /* ---------- note header: the course's own animation, with this note's topic lit ---------- */
+  function noteMap(slug, units, cur, k, href) {
+    const n = units.length, u = units[cur] || units[0];
+    const e = (x) => String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const link = (i, cls, inner, style = '') => `<a class="nm-i ${cls}${i === cur ? ' cur' : ''}" href="${href(i)}" title="${e(units[i].name)}" style="--i:${i};--n:${n};${style}">${inner}</a>`;
+    let art = '', kind = 'siem';
+    if (slug === 'pre-security') {
+      kind = 'layers';
+      art = `<span class="nm-packet"></span><span class="nm-packet late"></span>${units.map((x, i) => link(i, 'nm-layer', `<span><b>L${i + 1}</b>${e(x.name)}</span>`)).join('')}`;
+    } else if (slug === 'intro') {
+      kind = 'cipher';
+      const HEX = '7F3A9C0E51B8D24A6F03C9E7';
+      art = units.map((x, i) => link(i, 'nm-tile', i === cur ? '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>' : `<span>${HEX.substr((i * 2) % 22, 2)}</span>`)).join('');
+    } else if (slug === 'essentials') {
+      kind = 'rings';
+      const R = (i) => 12 + (i + 1) * (40 / n);
+      art = `<svg viewBox="-60 -60 120 120" aria-hidden="true">${units.map((x, i) => `<circle r="${R(n - 1 - i).toFixed(1)}" class="nm-ring${i === cur ? ' cur' : ''}" style="--i:${i}"><title>${e(x.name)}</title></circle>`).join('')}
+        <path d="M0 -8 l7 3 v5 c0 5 -3 8 -7 10 c-4 -2 -7 -5 -7 -10 v-5z" class="nm-shield"/><g class="nm-attack"><path d="M-58 0 H-53" /><circle r="2.5"/></g></svg>
+        <span class="nm-legend">${units.map((x, i) => link(i, 'nm-li', `<i></i>${e(x.name)}`)).join('')}</span>`;
+    } else {
+      const max = Math.max(...units.map((x) => x.count));
+      art = `<span class="nm-scan"></span>${units.map((x, i) => link(i, 'nm-bar', `<span>${e(x.name.split(' - ')[0])}</span>`, `--h:${Math.max(30, Math.round((x.count / max) * 100))}%`)).join('')}`;
+    }
+    const dots = Array.from({ length: u.count }, (_, j) => `<i class="${j < k ? 'done' : j === k ? 'now' : ''}"></i>`).join('');
+    return `<div class="note-map nm-${kind}" dir="ltr">
+      <div class="nm-art" style="--cols:${n}">${art}</div>
+      <div class="nm-info">
+        <small>Topic ${cur + 1} of ${n}</small>
+        <a class="nm-name" href="${href(cur)}">${e(u.name)}</a>
+        <span class="nm-dots" aria-hidden="true">${dots}</span>
+        <small>Note ${k + 1} of ${u.count} in this topic</small>
+      </div>
+    </div>`;
+  }
+
   /* ---------- small line icons ---------- */
   const ICONS = {
     log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
@@ -385,5 +420,5 @@ window.Visuals = (() => {
     }
   }
 
-  return { heroArt, courseArt, noteBanner, courseMap, mapFx, icon, monogram, enhance, diagram, reveal };
+  return { heroArt, courseArt, noteBanner, noteMap, courseMap, mapFx, icon, monogram, enhance, diagram, reveal };
 })();
