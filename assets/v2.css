@@ -539,17 +539,17 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 }
 @media (prefers-reduced-motion: reduce) { .course-hero::after, .ring circle.fg, .topic-list li { animation: none; } }
 /* ---------- course identity: one accent and one motif per course ---------- */
-.course-page { --ac: var(--cobalt); --ac-soft: var(--cobalt-soft); }
-.course-page[data-c="pre-security"] { --ac: #1795b0; }
-.course-page[data-c="intro"] { --ac: #6a55e0; }
-.course-page[data-c="essentials"] { --ac: #1c9466; }
-.course-page[data-c="sec450"] { --ac: #c9641c; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .course-page[data-c="pre-security"] { --ac: #4cc6e0; } :root:not([data-theme="light"]) .course-page[data-c="intro"] { --ac: #a596ff; } :root:not([data-theme="light"]) .course-page[data-c="essentials"] { --ac: #4fd29c; } :root:not([data-theme="light"]) .course-page[data-c="sec450"] { --ac: #ffa45c; } }
-:root[data-theme="dark"] .course-page[data-c="pre-security"] { --ac: #4cc6e0; }
-:root[data-theme="dark"] .course-page[data-c="intro"] { --ac: #a596ff; }
-:root[data-theme="dark"] .course-page[data-c="essentials"] { --ac: #4fd29c; }
-:root[data-theme="dark"] .course-page[data-c="sec450"] { --ac: #ffa45c; }
-.course-page { --ac-soft: color-mix(in srgb, var(--ac) 14%, transparent); --ac-line: color-mix(in srgb, var(--ac) 40%, var(--rule)); }
+.course-page, [data-c] { --ac: var(--cobalt); }
+[data-c="pre-security"] { --ac: #1795b0; }
+[data-c="intro"] { --ac: #6a55e0; }
+[data-c="essentials"] { --ac: #1c9466; }
+[data-c="sec450"] { --ac: #c9641c; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) [data-c="pre-security"] { --ac: #4cc6e0; } :root:not([data-theme="light"]) [data-c="intro"] { --ac: #a596ff; } :root:not([data-theme="light"]) [data-c="essentials"] { --ac: #4fd29c; } :root:not([data-theme="light"]) [data-c="sec450"] { --ac: #ffa45c; } }
+:root[data-theme="dark"] [data-c="pre-security"] { --ac: #4cc6e0; }
+:root[data-theme="dark"] [data-c="intro"] { --ac: #a596ff; }
+:root[data-theme="dark"] [data-c="essentials"] { --ac: #4fd29c; }
+:root[data-theme="dark"] [data-c="sec450"] { --ac: #ffa45c; }
+.course-page, [data-c] { --ac-soft: color-mix(in srgb, var(--ac) 14%, transparent); --ac-line: color-mix(in srgb, var(--ac) 40%, var(--rule)); }
 .course-page .course-hero .ar, .course-page .ch-links a, .course-page .topic-more, .course-page .topic-chips .i { color: var(--ac); }
 .course-page .ring circle.fg, .course-page .pbar i { stroke: var(--ac); }
 .course-page .pbar i { background: var(--ac); }
@@ -648,3 +648,31 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 @media (max-width: 720px) { .cm-rings .cm-body { grid-template-columns: 1fr; } .cm-ringart { max-width: 200px; margin: 0 auto; } .cm-head small { display: none; } .cm-row { grid-template-columns: minmax(0, 1fr) 30%  28px; } }
 @media (prefers-reduced-motion: reduce) { .cm-item, .cm-layer::after, .cm-packet, .cm-tile::after, .cm-ring, .cm-attack, .cm-track i, .cm-scan, .cm-live, .topic-head::before, .topic.flash { animation: none; } }
 .welcome .tagline { margin: 10px 0 0; font-size: 17px; font-weight: 500; line-height: 1.45; color: var(--ink); max-width: 46ch; padding-inline-start: 12px; border-inline-start: 3px solid var(--cobalt); }
+/* the same course colours everywhere a course appears */
+[data-c] .layer { fill: var(--ac-soft); stroke: var(--ac-line); animation-name: layer-wave-fill; }
+@keyframes layer-wave-fill { 0%, 100% { fill: var(--ac-soft); } 10% { fill: color-mix(in srgb, var(--ac) 45%, transparent); } }
+[data-c] .lock, [data-c] .shield, [data-c] .packet.ok { fill: var(--ac); }
+[data-c] .cipher { fill: var(--ac); fill-opacity: .55; }
+[data-c] .ring { stroke: var(--ac); }
+[data-c] .sbar:not(.spike) { fill: var(--ac); }
+.course[data-c] .course-step { background: var(--ac); color: #fff; }
+.course[data-c] .ar, .course[data-c] .course-meta b { color: var(--ac); }
+.course[data-c] .pbar i, .continue[data-c] .pbar i { background: var(--ac); }
+.course[data-c] { transition: border-color .3s, box-shadow .3s, transform .3s; }
+.course[data-c]:hover { border-color: var(--ac-line); box-shadow: 0 26px 50px -34px color-mix(in srgb, var(--ac) 70%, transparent); }
+.course[data-c]:hover h3 { color: var(--ac); }
+.course[data-c] .course-visual { overflow: hidden; }
+.course[data-c] .course-visual::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(60% 80% at 30% 0%, var(--ac-soft), transparent 70%); }
+.course[data-c] .course-visual::after { content: ""; position: absolute; top: 0; bottom: 0; width: 30%; left: -30%; z-index: 1; pointer-events: none; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ac) 16%, transparent), transparent); animation: card-sweep 6s linear infinite; animation-delay: calc(var(--d, 0) * 1.2s); }
+@keyframes card-sweep { to { left: 100%; } }
+.pick[data-c] .pick-ico { background: var(--ac-soft); color: var(--ac); }
+.nav-item.course-item[data-c] .num { background: var(--ac-soft); color: var(--ac); border-color: var(--ac-line); }
+.nav-item.course-item[data-c] .mini-bar i { background: var(--ac); }
+.nav-item.course-item[data-c].active { color: var(--ac); background: var(--ac-soft); }
+.note[data-c] .note-banner .bcore { fill: var(--ac); }
+.note[data-c] .note-banner .packet.ok { fill: var(--ac); }
+.note[data-c] .prose h2.reveal.in::after { background: var(--ac); }
+.note[data-c] .crumbs a:nth-child(2) { color: var(--ac); }
+@media (prefers-reduced-motion: reduce) { .course[data-c] .course-visual::after { animation: none; display: none; } }
+.pick[data-c] .pick-course { color: var(--ac); }
+.pick[data-c]:hover { border-color: var(--ac-line); }
