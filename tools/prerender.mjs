@@ -13,6 +13,8 @@ const ROOT = process.cwd();
 const OUT = path.join(ROOT, 'diagrams');
 const PORT = 8899;
 const LOCAL = process.env.LOCAL_LIBS ? JSON.parse(process.env.LOCAL_LIBS) : null; // only for offline testing
+// the clones the manifest was just built from, so the diagrams match that exact commit (raw.githubusercontent.com caches for minutes)
+const NOTES = process.env.NOTES_DIR || (LOCAL && LOCAL.notes) || null;
 const h36 = (s) => { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h.toString(36); };
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml' };
 
@@ -30,16 +32,17 @@ async function route(page) {
     const u = new URL(r.request().url());
     if (/goatcounter\.com$|(^|\.)zgo\.at$/.test(u.hostname)) return r.abort();
     if (u.hostname === 'api.github.com') return r.abort(); // only the manifest's notes are drawn; no re-render mid-capture
+    if (NOTES && u.hostname === 'raw.githubusercontent.com') {
+      const parts = u.pathname.split('/').slice(1).map(decodeURIComponent);
+      const f = path.join(NOTES, parts[1].toLowerCase(), ...parts.slice(3));
+      if (!f.startsWith(NOTES)) return r.fulfill({ status: 404, body: '' });
+      return fs.existsSync(f) ? r.fulfill({ path: f, contentType: 'text/plain; charset=utf-8' }) : r.fulfill({ status: 404, body: '' });
+    }
     if (LOCAL) {
       if (u.hostname === 'localhost') return r.continue();
       if (u.hostname === 'cdn.jsdelivr.net') {
         if (u.pathname.includes('@mermaid-js/layout-elk')) return r.fulfill({ path: path.join(LOCAL.elk, u.pathname.split('/dist/')[1]), contentType: 'text/javascript' });
         return r.fulfill({ path: LOCAL.lib[u.pathname.split('/').pop()], contentType: 'text/javascript' });
-      }
-      if (u.hostname === 'raw.githubusercontent.com') {
-        const parts = u.pathname.split('/').slice(1).map(decodeURIComponent);
-        const f = path.join(LOCAL.notes, parts[1].toLowerCase(), ...parts.slice(3));
-        return fs.existsSync(f) ? r.fulfill({ path: f, contentType: 'text/plain; charset=utf-8' }) : r.fulfill({ status: 404, body: '' });
       }
       return r.abort();
     }
