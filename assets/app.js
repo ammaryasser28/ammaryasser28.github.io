@@ -7,6 +7,7 @@
   const PHOTO = 'https://github.com/ammaryasser28.png?size=240';
   let DATA = null;
   let INDEX = [];
+  let DIAGRAMS = 658; // replaced by the count in diagrams/meta.json, which the workflow rewrites
   const noteCache = new Map();
   const V = window.Visuals;
 
@@ -17,6 +18,8 @@
   const trackBy = (slug) => DATA.tracks.find((t) => t.slug === slug);
   const noteHref = (t, path) => `?t=${t.slug}&n=${encodeURIComponent(path)}`;
   const flatNotes = (t) => t.sections.flatMap((s) => s.notes.map((n) => ({ ...n, section: s.name })));
+  // the exact commit GitHub reported on this visit, so an edit shows at once (the branch name is cached for minutes)
+  const refOf = (t) => t.ref || DATA.branch;
   const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- reading progress, kept in this browser ---------- */
@@ -170,8 +173,8 @@
     if (!send()) { let n = 0; const t = setInterval(() => { if (send() || ++n > 20) clearInterval(t); }, 500); }
   }
 
-  function route() {
-    setTimeout(track, 0);
+  function route(quiet) {
+    if (!quiet) setTimeout(track, 0);
     const p = new URLSearchParams(location.search);
     const t = p.get('t') && trackBy(p.get('t'));
     const n = p.get('n');
@@ -236,7 +239,7 @@
       </section>
 
       <section class="stat-row" aria-label="Site at a glance">
-        ${[['notes', 'Notes', total], ['layers', 'Courses', DATA.tracks.length], ['diagram', 'Diagrams', 658], ['clock', 'Hours of reading', hours]].map(([i, l, v], k) => `
+        ${[['notes', 'Notes', total], ['layers', 'Courses', DATA.tracks.length], ['diagram', 'Diagrams', DIAGRAMS], ['clock', 'Hours of reading', hours]].map(([i, l, v], k) => `
           <div class="stat reveal" style="--d:${k}"><span class="stat-ico">${ic(i)}</span><span><small>${l}</small><b data-count="${v}">${v}</b></span></div>`).join('')}
       </section>
 
@@ -530,7 +533,7 @@
     box.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
       if (src && !/^(https?:|data:)/i.test(src)) {
-        img.src = `${RAW}/${DATA.owner}/${t.repo}/${DATA.branch}/${enc(new URL(src, 'https://x/' + dirBase).pathname.slice(1).split('/').map(decodeURIComponent).join('/'))}`;
+        img.src = `${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/${enc(new URL(src, 'https://x/' + dirBase).pathname.slice(1).split('/').map(decodeURIComponent).join('/'))}`;
       }
       img.loading = 'lazy';
     });
@@ -569,9 +572,9 @@
   }
 
   async function fetchNote(t, path) {
-    const k = `${t.repo}/${path}`;
+    const k = `${t.repo}@${refOf(t)}/${path}`;
     if (noteCache.has(k)) return noteCache.get(k);
-    const res = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${DATA.branch}/${enc(path)}`);
+    const res = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/${enc(path)}`);
     if (!res.ok) throw new Error(String(res.status));
     const text = await res.text();
     noteCache.set(k, text);
@@ -842,33 +845,94 @@
       <p>The link may be from an older version of the site. <a href="./">Go to the dashboard</a> to see all four courses.</p></div></div>`;
   }
 
-  /* ---------- notes added on GitHub after this index was built ---------- */
-  async function syncFromGitHub() {
-    const results = await Promise.allSettled(DATA.tracks.map(async (t) => {
-      const res = await fetch(`https://api.github.com/repos/${DATA.owner}/${t.repo}/git/trees/${DATA.branch}?recursive=1`);
-      if (!res.ok) return false;
-      const tree = await res.json();
-      const known = new Set(flatNotes(t).map((n) => n.path));
-      const fresh = (tree.tree || []).filter((x) => x.type === 'blob' && /\.md$/i.test(x.path) && !/(^|\/)readme\.md$/i.test(x.path) && !known.has(x.path));
-      if (!fresh.length) return false;
-      fresh.forEach((f) => {
-        const parts = f.path.split('/');
-        const title = parts.pop().replace(/\.md$/i, '');
-        const top = parts.length ? parts[0] : null;
-        let sec = top ? t.sections.find((s) => s.notes.some((x) => x.path.split('/')[0] === top)) : t.sections.find((s) => s.name === 'More topics');
-        if (!sec) { sec = { name: top ? top.replace(/-/g, ' ') : 'More topics', notes: [] }; t.sections.push(sec); }
-        sec.notes.push({ path: f.path, title, sub: parts.slice(1), words: 0 });
-      });
-      t.count = flatNotes(t).length;
-      return true;
-    }));
-    if (results.some((r) => r.status === 'fulfilled' && r.value)) { buildIndex(); renderNav(); }
+  /* ---------- the notes index, read live from the course repos on GitHub ---------- */
+  // Each course is rebuilt from its repo with the same rules as tools/manifest.py, so a note pushed
+  // to GitHub shows up on the next visit, in its folder's topic and in alphabetical order, and a
+  // deleted or renamed note disappears. If GitHub's API can't be reached (offline, rate limit),
+  // data/manifest.json is used as it is; a workflow refreshes it a few minutes after every push.
+  const API = 'https://api.github.com/repos';
+  const SMALL = new Set(['and', 'of', 'the', 'a', 'vs', 'to', 'in', 'for', 'on']);
+  const UPPER = { vpn: 'VPN', dlp: 'DLP', siem: 'SIEM', mdm: 'MDM', raid: 'RAID', lockbit: 'LockBit', ssh: 'SSH', dns: 'DNS' };
+  function pretty(name, isFile = true) {
+    if (isFile && name.toLowerCase().endsWith('.md')) name = name.slice(0, -3);
+    name = name.trim();
+    if (name.includes(' ')) return name;
+    return name.replace(/-/g, ' ').split(/\s+/).filter(Boolean)
+      .map((w, i) => UPPER[w.toLowerCase()] || (i && SMALL.has(w.toLowerCase()) ? w : w.slice(0, 1).toUpperCase() + w.slice(1)))
+      .join(' ');
+  }
+  // the order a folder walk gives: a folder's own files first, then its subfolders, each A to Z ignoring case
+  const walkKey = (p) => { const a = p.split('/'); return a.map((x, i) => (i === a.length - 1 ? '0' : '1') + x); };
+  function walkCmp(a, b) {
+    const x = walkKey(a), y = walkKey(b);
+    for (let i = 0; i < Math.min(x.length, y.length); i++) {
+      const p = x[i].toLowerCase(), q = y[i].toLowerCase();
+      if (p !== q) return p < q ? -1 : 1;
+      if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+    }
+    return x.length - y.length;
+  }
+  function fromTree(t, tree) {
+    const known = new Map(flatNotes(t).map((n) => [n.path, n.words]));
+    const files = tree
+      .filter((x) => x.type === 'blob' && /\.md$/i.test(x.path) && x.path.split('/').pop().toLowerCase() !== 'readme.md'
+        && !x.path.split('/').slice(0, -1).some((d) => d.startsWith('.')))
+      .sort((a, b) => walkCmp(a.path, b.path));
+    const secs = new Map();
+    const loose = [];
+    files.forEach((f) => {
+      const parts = f.path.split('/');
+      const note = {
+        path: f.path, title: pretty(parts[parts.length - 1]), sub: parts.slice(1, -1).map((p) => pretty(p, false)),
+        words: known.has(f.path) ? known.get(f.path) : Math.max(1, Math.round((f.size || 0) / 6)),
+      };
+      if (parts.length === 1) { loose.push(note); return; }
+      const k = pretty(parts[0], false);
+      if (!secs.has(k)) secs.set(k, []);
+      secs.get(k).push(note);
+    });
+    const sections = [...secs].map(([name, notes]) => ({ name, notes }));
+    if (loose.length) sections.push({ name: 'More topics', notes: loose });
+    const all = sections.flatMap((s) => s.notes);
+    return { sections, count: all.length, words: all.reduce((a, n) => a + n.words, 0) };
+  }
+  async function liveTrack(t) {
+    const r = await fetch(`${API}/${DATA.owner}/${t.repo}/commits/${DATA.branch}`, { headers: { Accept: 'application/vnd.github.sha' } });
+    if (!r.ok) return false;
+    const sha = (await r.text()).trim();
+    if (!/^[0-9a-f]{40}$/.test(sha)) return false;
+    t.ref = sha;
+    if (sha === t.sha) return false; // the manifest was built from this very commit
+    const tr = await fetch(`${API}/${DATA.owner}/${t.repo}/git/trees/${sha}?recursive=1`);
+    if (!tr.ok) return false;
+    const tree = await tr.json();
+    if (tree.truncated || !Array.isArray(tree.tree)) return false;
+    const next = fromTree(t, tree.tree);
+    if (!next.count) return false;
+    const changed = JSON.stringify(next.sections) !== JSON.stringify(t.sections);
+    Object.assign(t, next);
+    return changed;
   }
 
   /* ---------- boot ---------- */
   fetch('data/manifest.json')
     .then((r) => r.json())
-    .then((d) => { DATA = d; buildIndex(); route(); syncFromGitHub().catch(() => { /* the index is enough */ }); })
+    .then(async (d) => {
+      DATA = d;
+      const meta = fetch('diagrams/meta.json').then((r) => r.json()).then((m) => { if (m.diagrams > 0) DIAGRAMS = m.diagrams; }).catch(() => {});
+      const live = Promise.allSettled(DATA.tracks.map(liveTrack));
+      // wait briefly so the first screen is already up to date; a slow API never holds the page
+      const inTime = await Promise.race([Promise.all([live, meta]).then(() => true), new Promise((r) => setTimeout(() => r(false), 1500))]);
+      buildIndex();
+      route();
+      if (inTime) return;
+      const res = await live;
+      if (!res.some((x) => x.status === 'fulfilled' && x.value)) return;
+      buildIndex();
+      renderNav();
+      const p = new URLSearchParams(location.search);
+      if (!p.get('n') && !location.hash) route(true); // a note being read is never redrawn under the reader
+    })
     .catch(() => {
       main.innerHTML = `<div class="page"><div class="state"><h1>The notes index didn't load</h1>
         <p>Reload the page. If it keeps happening, the notes are all on <a href="https://github.com/ammaryasser28">GitHub</a>.</p></div></div>`;
