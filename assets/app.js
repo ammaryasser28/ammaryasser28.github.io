@@ -388,7 +388,7 @@
       sel = hits.length ? 0 : -1;
       list.innerHTML = hits.length
         ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}"><a href="${noteHref(h.track, h.note.path)}">
-            <span class="r-title">${mark(h.note.title, words)}${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
+            <span class="r-title"><span>${mark(h.note.title, words)}</span>${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
             <small>${esc(h.track.name)} / ${esc(h.note.section)}</small></a></li>`).join('')
         : `<li class="none">No note title matches "${esc(input.value.trim())}". Try a shorter word, like "DNS" or "hash".</li>`;
       list.hidden = false;
