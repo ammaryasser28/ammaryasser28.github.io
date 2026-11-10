@@ -28,6 +28,22 @@
     set(k, v) { try { localStorage.setItem('btn:' + k, JSON.stringify(v)); } catch (e) { /* storage unavailable */ } },
   };
   const readSet = new Set(store.get('read', []));
+
+  /* ---------- language: the original notes (Arabic with English terms) or English only ---------- */
+  // The English version of each note lives in its course repo as .site/en/<note key>.md.
+  // ?lang=en or ?lang=mix in a link picks the language for that visitor, like the button does.
+  let LANG = store.get('lang', 'mix') === 'en' ? 'en' : 'mix';
+  (() => { const q = new URLSearchParams(location.search).get('lang'); if (q === 'en' || q === 'mix') { LANG = q; store.set('lang', q); } })();
+  const setLangUI = () => {
+    document.documentElement.setAttribute('data-lang', LANG);
+    document.querySelectorAll('.lang button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.lang === LANG)));
+  };
+  setLangUI();
+  document.querySelectorAll('.lang button').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.lang === LANG) return;
+    LANG = b.dataset.lang; store.set('lang', LANG); setLangUI();
+    if (DATA) { const y = scrollY; route(true); if (!new URLSearchParams(location.search).get('n')) setTimeout(() => scrollTo(0, y), 0); }
+  }));
   const key = (t, path) => `${t.slug}|${path}`;
   const isRead = (t, path) => readSet.has(key(t, path));
   const readCount = (t) => flatNotes(t).filter((n) => isRead(t, n.path)).length;
@@ -622,14 +638,19 @@
       </aside>`;
   }
 
+  // returns { text, en }: en is true when the English version was found and is the text
   async function fetchNote(t, path) {
-    const k = `${t.repo}@${refOf(t)}/${path}`;
+    const k = `${LANG}:${t.repo}@${refOf(t)}/${path}`;
     if (noteCache.has(k)) return noteCache.get(k);
+    if (LANG === 'en') {
+      const r = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/en/${h36(`${t.slug}|${path}`)}.md`).catch(() => null);
+      if (r && r.ok) { const got = { text: await r.text(), en: true }; noteCache.set(k, got); return got; }
+    }
     const res = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/${enc(path)}`);
     if (!res.ok) throw new Error(String(res.status));
-    const text = await res.text();
-    noteCache.set(k, text);
-    return text;
+    const got = { text: await res.text(), en: false };
+    noteCache.set(k, got);
+    return got;
   }
 
   let readWatch = null;
@@ -657,7 +678,7 @@
           <div class="meta">
             <span id="read-chip" class="read-chip${read ? ' done' : ''}">${read ? 'Read' : `${minutes(n.words || 200)} min read`}</span>
             <span>Note ${i + 1} of ${all.length}</span>
-            <span>Arabic, with English terms</span>
+            <span id="lang-chip">${LANG === 'en' ? 'English' : 'Arabic, with English terms'}</span>
             <a href="${gh}" rel="noopener" target="_blank">Open on GitHub</a>
           </div>
         </header>
@@ -674,10 +695,12 @@
 
     const prose = document.getElementById('prose');
     try {
-      const md = await fetchNote(t, path);
+      const got = await fetchNote(t, path);
       if (new URLSearchParams(location.search).get('n') !== path) return;
-      const html = DOMPurify.sanitize(marked.parse(md, { gfm: true, headerIds: false, mangle: false }));
+      const html = DOMPurify.sanitize(marked.parse(got.text, { gfm: true, headerIds: false, mangle: false }));
       const box = prepare(html, t, path);
+      document.getElementById('lang-chip').textContent = got.en ? 'English' : 'Arabic, with English terms';
+      if (LANG === 'en' && !got.en) box.insertAdjacentHTML('afterbegin', '<p class="en-missing">This note isn\'t translated yet, so it is shown in the original Arabic with English terms.</p>');
       const dir = noteDir(box);
       prose.setAttribute('dir', dir);
       prose.setAttribute('lang', dir === 'rtl' ? 'ar' : 'en');
