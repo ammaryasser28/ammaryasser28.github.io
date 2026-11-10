@@ -79,12 +79,25 @@ async function harvest(page, url) {
   fs.rmSync(OUT, { recursive: true, force: true });
   const browser = await chromium.launch();
   const report = { built: new Date().toISOString(), course: TRACK || 'all', notes: jobs.length, diagrams: 0, files: 0, errors: [] };
+  // English versions (.site/en/<key>.md in each course repo) whose diagrams differ from the original
+  // are drawn too; both versions' SVGs go in the same file, since each is keyed by its source.
+  const fence = /```mermaid[^\n]*\n([\s\S]*?)```/g;
+  const blocks = (txt) => [...txt.matchAll(fence)].map((m) => m[1].trim()).join('\n---\n');
+  const repoOf = Object.fromEntries(manifest.tracks.map((t) => [t.slug, t.repo]));
+  const enJobs = NOTES ? jobs.filter((j) => {
+    const base = path.join(NOTES, repoOf[j.t].toLowerCase());
+    const en = path.join(base, '.site', 'en', `${h36(`${j.t}|${j.p}`)}.md`);
+    try { return fs.existsSync(en) && blocks(fs.readFileSync(en, 'utf8')) !== blocks(fs.readFileSync(path.join(base, j.p), 'utf8')); } catch (e) { return false; }
+  }) : [];
+  report.english = enJobs.length;
   for (const mode of ['light', 'dark']) {
     const dir = path.join(OUT, mode[0]);
     fs.mkdirSync(dir, { recursive: true });
+    const maps = new Map();
+    for (const lang of ['mix', 'en']) {
     const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, colorScheme: mode, deviceScaleFactor: 1 });
-    await ctx.addInitScript((m) => { try { localStorage.setItem('theme', m); } catch (e) { /* */ } window.__harvest = []; }, mode);
-    const queue = [...jobs];
+    await ctx.addInitScript(([m, l]) => { try { localStorage.setItem('theme', m); localStorage.setItem('btn:lang', JSON.stringify(l)); } catch (e) { /* */ } window.__harvest = []; }, [mode, lang]);
+    const queue = [...(lang === 'en' ? enJobs : jobs)];
     const worker = async () => {
       const page = await ctx.newPage();
       await route(page);
@@ -93,23 +106,25 @@ async function harvest(page, url) {
         const url = `http://localhost:${PORT}/?t=${j.t}&n=${encodeURIComponent(j.p)}`;
         let r = await harvest(page, url);
         if (r.fail) r = await harvest(page, url); // one retry for a slow network
-        if (r.fail) { report.errors.push({ mode, note: `${j.t}/${j.p}`, error: r.fail }); continue; }
+        if (r.fail) { report.errors.push({ mode, lang, note: `${j.t}/${j.p}`, error: r.fail }); continue; }
         if (!r.count) continue;
         const map = {};
         for (const it of r.items) {
           if (it.svg) map[it.h] = it.svg;
-          else report.errors.push({ mode, note: `${j.t}/${j.p}`, diagram: it.h, error: it.error });
+          else report.errors.push({ mode, lang, note: `${j.t}/${j.p}`, diagram: it.h, error: it.error });
         }
         const missing = r.count - Object.keys(map).length;
-        if (missing > 0 && !r.items.some((x) => x.error)) report.errors.push({ mode, note: `${j.t}/${j.p}`, error: `${missing} diagram(s) not captured` });
-        fs.writeFileSync(path.join(dir, `${h36(`${j.t}|${j.p}`)}.json`), JSON.stringify(map));
-        if (mode === 'light') report.diagrams += Object.keys(map).length;
-        report.files += 1;
+        if (missing > 0 && !r.items.some((x) => x.error)) report.errors.push({ mode, lang, note: `${j.t}/${j.p}`, error: `${missing} diagram(s) not captured` });
+        const file = `${h36(`${j.t}|${j.p}`)}.json`;
+        maps.set(file, { ...(maps.get(file) || {}), ...map });
+        if (mode === 'light' && lang === 'mix') report.diagrams += Object.keys(map).length;
       }
       await page.close();
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
     await ctx.close();
+    }
+    for (const [file, map] of maps) { fs.writeFileSync(path.join(dir, file), JSON.stringify(map)); report.files += 1; }
   }
   await browser.close();
   server.close();
