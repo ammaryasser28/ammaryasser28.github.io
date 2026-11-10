@@ -333,7 +333,7 @@ main.enter > * { animation: page-in .45s cubic-bezier(.2,.7,.2,1) both; }
 .diagram.pannable .dg-port { cursor: grab; }
 .diagram.dragging .dg-port { cursor: grabbing; user-select: none; }
 .dg-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 10px 8px 14px; border-bottom: 1px solid var(--rule); background: var(--paper); }
-.dg-title { display: flex; align-items: baseline; gap: 10px; font-weight: 600; font-size: 14px; color: var(--ink); min-width: 0; }
+.dg-title { display: flex; align-items: baseline; gap: 10px; font-weight: 600; font-size: 14px; color: var(--ink); min-width: 0; white-space: nowrap; }
 .dg-title > svg { width: 16px; height: 16px; align-self: center; color: var(--cobalt); }
 .dg-title small { font-weight: 400; font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dg-tools { display: flex; align-items: center; gap: 2px; flex: none; }
