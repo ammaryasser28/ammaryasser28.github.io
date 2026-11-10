@@ -61,6 +61,19 @@
       track: t, note: n, hay: [n.title, n.section, ...n.sub, t.name].join(' ').toLowerCase(),
     })));
   }
+  // The headings inside every note, from each course repo's .site/search.json (written by its workflow on
+  // every push), so a search finds sections too. Loaded the first time someone searches.
+  const HEADS = new Map();
+  let headsLoading = null;
+  function loadHeads() {
+    if (headsLoading || !DATA) return headsLoading;
+    const take = (j) => { Object.entries(j || {}).forEach(([k, v]) => { if (!HEADS.has(k)) HEADS.set(k, v); }); };
+    const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    headsLoading = Promise.all(DATA.tracks.map((t) => get(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/search.json`).then(take)))
+      .then(() => get('diagrams/search.json').then(take));
+    return headsLoading;
+  }
+  const headsOf = (t, path) => { const e = HEADS.get(key(t, path)); return (e && ((LANG === 'en' && e.en) || e.mix)) || []; };
 
   /* ---------- icons ---------- */
   const I = {
@@ -195,6 +208,25 @@
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: reduceMotion() ? 'auto' : 'smooth', block: 'start' });
     if (el && el.classList.contains('topic')) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  }
+  // opening a note at a section: diagrams above it keep changing size while they draw, so stay on the
+  // section until the page settles (about 2.5 s), unless the reader scrolls first
+  function settleHash(hash) {
+    let id = hash.slice(1);
+    try { id = decodeURIComponent(id); } catch (e) { /* keep raw */ }
+    const el = document.getElementById(id);
+    if (!el) return;
+    let stop = false;
+    const evs = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+    const cancel = () => { stop = true; };
+    evs.forEach((ev) => addEventListener(ev, cancel, { passive: true, once: true }));
+    const t0 = performance.now();
+    const tick = () => {
+      if (stop || !el.isConnected) return evs.forEach((ev) => removeEventListener(ev, cancel));
+      el.scrollIntoView({ block: 'start' });
+      if (performance.now() - t0 < 2500) requestAnimationFrame(tick); else evs.forEach((ev) => removeEventListener(ev, cancel));
+    };
+    tick();
   }
 
   // visit counter (GoatCounter): one hit per page, also for in-site navigation
@@ -383,14 +415,28 @@
       const q = input.value.trim().toLowerCase();
       if (!q || !DATA) { list.hidden = true; input.setAttribute('aria-expanded', 'false'); return; }
       const words = q.split(/\s+/);
-      hits = INDEX.filter((x) => words.every((w) => x.hay.includes(w)))
-        .sort((a, b) => (b.note.title.toLowerCase().includes(q) - a.note.title.toLowerCase().includes(q))).slice(0, 10);
+      if (!HEADS.size) loadHeads()?.then(() => { if (HEADS.size && document.activeElement === input && input.value.trim()) draw(); });
+      // a note matches when every word is in its title, course, section or one of its headings;
+      // title matches come first, and a heading match links straight to that section
+      hits = INDEX.map((x) => {
+        const hs = headsOf(x.track, x.note.path);
+        const all = `${x.hay} ${hs.join(' ').toLowerCase()}`;
+        if (!words.every((w) => all.includes(w))) return null;
+        const inTitle = words.every((w) => x.hay.includes(w));
+        let head = -1, best = 0;
+        if (!inTitle) hs.forEach((h, i) => { const l = h.toLowerCase(), c = words.filter((w) => l.includes(w)).length; if (c > best) { best = c; head = i; } });
+        let href = noteHref(x.track, x.note.path);
+        if (head >= 0) { const s = slugger(); const ids = hs.map((h) => s(h)); href += `#${encodeURIComponent(ids[head])}`; }
+        const score = (x.note.title.toLowerCase().includes(q) ? 4 : 0) + (inTitle ? 2 : 0) + (head >= 0 && hs[head].toLowerCase().includes(q) ? 1 : 0);
+        return { ...x, hs, head, href, score };
+      }).filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 10);
       sel = hits.length ? 0 : -1;
       list.innerHTML = hits.length
-        ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}"><a href="${noteHref(h.track, h.note.path)}">
+        ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}"><a href="${h.href}">
             <span class="r-title"><span>${mark(h.note.title, words)}</span>${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
+            ${h.head >= 0 ? `<span class="r-head">${mark(h.hs[h.head], words)}</span>` : ''}
             <small>${esc(h.track.name)} / ${esc(h.note.section)}</small></a></li>`).join('')
-        : `<li class="none">No note title matches "${esc(input.value.trim())}". Try a shorter word, like "DNS" or "hash".</li>`;
+        : `<li class="none">No note matches "${esc(input.value.trim())}". Try a shorter word, like "DNS" or "hash".</li>`;
       list.hidden = false;
       input.setAttribute('aria-expanded', 'true');
       input.setAttribute('aria-activedescendant', sel >= 0 ? 'r0' : '');
@@ -406,7 +452,7 @@
     input.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowDown') { e.preventDefault(); move(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); move(-1); }
-      else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); list.hidden = true; input.blur(); go(noteHref(hits[sel].track, hits[sel].note.path)); }
+      else if (e.key === 'Enter' && sel >= 0) { e.preventDefault(); list.hidden = true; input.blur(); go(hits[sel].href); }
       else if (e.key === 'Escape') { input.value = ''; draw(); input.blur(); }
     });
     list.addEventListener('click', () => { list.hidden = true; input.value = ''; });
@@ -711,7 +757,7 @@
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       spy();
       drawDiagrams(prose, t, path);
-      if (location.hash) scrollToHash(location.hash);
+      if (location.hash) settleHash(location.hash);
       // the note counts as read once its last part has been on screen
       if (readWatch) readWatch.disconnect();
       const pager = main.querySelector('.pager');
