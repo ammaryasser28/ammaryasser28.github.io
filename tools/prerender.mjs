@@ -84,6 +84,32 @@ async function harvest(page, url) {
   const fence = /```mermaid[^\n]*\n([\s\S]*?)```/g;
   const blocks = (txt) => [...txt.matchAll(fence)].map((m) => m[1].trim()).join('\n---\n');
   const repoOf = Object.fromEntries(manifest.tracks.map((t) => [t.slug, t.repo]));
+  // search.json beside meta.json: every heading of every note (and of its English version), in page order,
+  // so the site search finds what a note is about, not only its title, and jumps to that section
+  if (NOTES) {
+    const plain = (s) => s.replace(/!\[[^\]]*\]\([^)]*\)/g, '').replace(/\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/<[^>]+>/g, '').replace(/(^|[^\w])(_{1,2})(?=\S)(.+?)\2(?=[^\w]|$)/g, '$1$3').replace(/[`*]/g, '').replace(/\s+/g, ' ').trim();
+    const heads = (txt) => {
+      const out = []; let fenced = false;
+      for (const l of txt.split('\n')) {
+        if (/^\s*(```|~~~)/.test(l)) { fenced = !fenced; continue; }
+        const m = !fenced && l.match(/^#{1,6}\s+(.+?)\s*#*\s*$/);
+        // the site drops a note's own table of contents, so it is never a search result
+        if (m && !/^(table of contents|contents|الفهرس|المحتويات|فهرس المحتويات)$/i.test(plain(m[1]))) out.push(plain(m[1]));
+      }
+      return out;
+    };
+    const search = {};
+    for (const j of jobs) {
+      const base = path.join(NOTES, repoOf[j.t].toLowerCase());
+      const k = `${j.t}|${j.p}`, e = {};
+      try { e.mix = heads(fs.readFileSync(path.join(base, j.p), 'utf8')); } catch (err) { continue; }
+      const en = path.join(base, '.site', 'en', `${h36(k)}.md`);
+      if (fs.existsSync(en)) e.en = heads(fs.readFileSync(en, 'utf8'));
+      search[k] = e;
+    }
+    fs.mkdirSync(path.dirname(META), { recursive: true });
+    fs.writeFileSync(path.join(path.dirname(META), 'search.json'), JSON.stringify(search));
+  }
   const enJobs = NOTES ? jobs.filter((j) => {
     const base = path.join(NOTES, repoOf[j.t].toLowerCase());
     const en = path.join(base, '.site', 'en', `${h36(`${j.t}|${j.p}`)}.md`);
