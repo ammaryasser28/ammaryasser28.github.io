@@ -217,6 +217,7 @@ body.nav-collapsed .nav-me { justify-content: center; padding: 6px; }
 .top-search input:not(:placeholder-shown) ~ kbd { display: none; }
 .top-search .results { top: calc(100% + 8px); }
 .r-title { display: flex; align-items: center; gap: 8px; }
+.r-head { display: block; margin: 3px 0 1px; padding-left: 10px; border-left: 2px solid var(--cobalt); font-size: 13px; color: var(--muted); text-align: left; unicode-bidi: plaintext; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .r-read { color: #1f8a5b; display: inline-flex; }
 .r-read .i { width: 16px; height: 16px; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
@@ -918,3 +919,10 @@ html[data-lang="en"] .ar { display: none !important; }
 
 /* table cells wrap between words, never inside one (a wide table scrolls sideways instead) */
 .prose .table :is(th, td) { overflow-wrap: break-word; word-break: normal; }
+
+/* small screens: while searching, the box takes the whole top bar and the results span its full width */
+@media (max-width: 600px) {
+  .topbar:has(.top-search:focus-within) .top-actions, .topbar:has(.top-search .results:not([hidden])) .top-actions { display: none; }
+  .top-search { position: static; }
+  .top-search .results { left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 480px); }
+}
