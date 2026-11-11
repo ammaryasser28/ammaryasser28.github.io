@@ -1091,7 +1091,6 @@
             ${starBtn({ kind: 'note', t: t.slug, n: path, title: n.title }, 'star-note', true)}
             <span>Note ${i + 1} of ${all.length}</span>
             <span id="lang-chip">${LANG === 'en' ? 'English' : 'Arabic, with English terms'}</span>
-            <a href="${gh}" rel="noopener" target="_blank">Open on GitHub</a>
           </div>
         </header>
         <div class="prose" id="prose"><div class="skeleton" role="status" aria-label="Loading the note"><i></i><i></i><i></i><i></i></div></div>
