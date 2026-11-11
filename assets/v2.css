@@ -1087,3 +1087,73 @@ a.ct:hover { transform: translateY(-3px); border-color: var(--cobalt); }
   .welcome .tagline { border-inline-start: 0; padding-inline-start: 0; margin-inline: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .who-open i, .t-caret, .lightbox[open] { animation: none; } }
+
+/* ---------- stars ---------- */
+.star { display: inline-grid; place-items: center; flex: none; border: 0; background: none; padding: 0; color: var(--muted); cursor: pointer; transition: color .2s, transform .2s, opacity .2s, background .2s, border-color .2s; }
+.star-i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; transition: fill .2s; }
+.star:hover { color: var(--marker); }
+.star[aria-pressed="true"] { color: var(--marker); }
+.star[aria-pressed="true"] .star-i { fill: currentColor; }
+.star.pop .star-i { animation: star-pop .5s cubic-bezier(.3,1.7,.5,1); }
+@keyframes star-pop { 0% { transform: scale(.4) rotate(-30deg); } 60% { transform: scale(1.35) rotate(8deg); } 100% { transform: none; } }
+.star:focus-visible { outline: 2px solid var(--cobalt); outline-offset: 2px; border-radius: 6px; }
+/* under a note's title */
+.star-note { display: inline-flex; gap: 6px; height: 26px; padding: 0 11px 0 8px; border-radius: 99px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); font: 500 13.5px var(--font); }
+.star-note .star-i { width: 15px; height: 15px; color: var(--muted); }
+.star-note:hover { border-color: var(--marker); color: var(--ink); }
+.star-note[aria-pressed="true"] { border-color: var(--marker); background: color-mix(in srgb, var(--marker) 16%, var(--surface)); color: var(--ink); }
+.star-note[aria-pressed="true"] .star-i, .star-note:hover .star-i { color: var(--marker); }
+.star-note .s-on, .star-note[aria-pressed="true"] .s-off { display: none; }
+.star-note[aria-pressed="true"] .s-on { display: inline; }
+/* beside a heading: appears when the heading is pointed at, stays once starred */
+.prose .star-h { width: 28px; height: 28px; margin-inline-start: 6px; vertical-align: middle; border-radius: 8px; opacity: 0; }
+.prose :is(h2, h3, h4):hover .star-h, .prose .star-h:focus-visible, .prose .star-h[aria-pressed="true"] { opacity: 1; }
+.prose .star-h:hover { background: color-mix(in srgb, var(--marker) 16%, transparent); }
+@media (hover: none) { .prose .star-h { opacity: .55; } }
+/* in a diagram's toolbar */
+.dg-tools .star-dg { color: var(--muted); }
+.dg-tools .star-dg .star-i { width: 17px; height: 17px; }
+.dg-tools .star-dg:hover, .note[data-c] .dg-tools .star-dg:hover { background: color-mix(in srgb, var(--marker) 16%, transparent); color: var(--marker); }
+.dg-tools .star-dg[aria-pressed="true"] { color: var(--marker); }
+.dg-tools .star-dg[aria-pressed="true"] .star-i { fill: currentColor; }
+.prose figure.diagram, .prose :is(h2, h3, h4) { scroll-margin-top: 96px; }
+/* the small mark on a starred note in lists */
+.star-mark { display: inline-grid; place-items: center; flex: none; margin-inline-start: 6px; color: var(--marker); vertical-align: -2px; }
+.star-mark .star-i { width: 13px; height: 13px; fill: currentColor; }
+.tree-item .star-mark { margin-inline-start: auto; padding-inline-start: 6px; }
+.tree-item.current .star-mark { color: var(--on-cobalt); }
+.nav-stars .nc-count { flex: none; min-width: 22px; padding: 1px 7px; border-radius: 999px; background: color-mix(in srgb, var(--marker) 18%, var(--paper)); border: 1px solid color-mix(in srgb, var(--marker) 55%, var(--rule)); font: 600 12px var(--font); color: var(--ink); text-align: center; }
+.nav-stars.active .i, .nav-stars:hover .i { color: var(--marker); }
+/* lists of stars: the Starred page and the home panel */
+.star-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 10px; }
+.star-list > li { display: flex; align-items: center; gap: 4px; padding-inline-end: 8px; border-radius: 14px; border: 1px solid var(--rule); background: var(--surface); transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .2s, opacity .6s ease; }
+.star-list > li:hover { transform: translateY(-2px); border-color: var(--ac, var(--cobalt)); }
+.star-list a { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 6px 12px 12px; color: var(--ink); text-decoration: none; }
+.sl-ico { width: 38px; height: 38px; flex: none; border-radius: 11px; display: grid; place-items: center; background: var(--ac-soft, var(--cobalt-soft)); color: var(--ac, var(--cobalt)); }
+.sl-ico .i { width: 19px; height: 19px; }
+.sl-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.sl-text b { font-size: 15px; font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: start; }
+.sl-text small { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-go { flex: none; color: var(--muted); opacity: 0; transform: rotate(180deg) translateX(4px); transition: opacity .2s, transform .2s; }
+.sl-go .i { width: 16px; height: 16px; }
+.star-list > li:hover .sl-go { opacity: 1; transform: rotate(180deg); }
+.star-row { width: 34px; height: 34px; border-radius: 9px; }
+.star-row:hover { background: color-mix(in srgb, var(--marker) 16%, transparent); }
+.stars-page { display: flex; flex-direction: column; gap: 18px; }
+.stars-page .crumbs { margin-bottom: -6px; }
+.star-group { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+.star-group h2 { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 18px; font-weight: 600; }
+.star-group h2 a { color: var(--ac, var(--ink)); text-decoration: none; }
+.star-group h2 a:hover { text-decoration: underline; }
+.star-group h2 span { padding: 1px 8px; border-radius: 99px; border: 1px solid var(--rule); font: 500 12px var(--mono); color: var(--muted); }
+.star-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 48px 24px; border-radius: 20px; border: 1px dashed var(--rule); background: var(--surface); }
+.se-star { width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--marker) 16%, transparent); color: var(--marker); margin-bottom: 6px; }
+.se-star .star-i { width: 32px; height: 32px; fill: currentColor; animation: twinkle 2.6s ease-in-out infinite; }
+@keyframes twinkle { 50% { transform: scale(1.14) rotate(8deg); } }
+.star-empty h2 { margin: 0; font-size: 22px; font-weight: 600; }
+.star-empty > p { margin: 0; max-width: 52ch; color: var(--muted); }
+.star-empty ul { list-style: none; margin: 14px 0 18px; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.star-empty li { display: flex; align-items: center; gap: 9px; padding: 9px 14px; border-radius: 12px; background: var(--paper); border: 1px solid var(--rule); font-size: 14px; text-align: start; }
+.star-empty li .i { width: 18px; height: 18px; color: var(--cobalt); flex: none; }
+#stars .section-head { align-items: center; }
+@media (prefers-reduced-motion: reduce) { .star.pop .star-i, .se-star .star-i { animation: none; } }
