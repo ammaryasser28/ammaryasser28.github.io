@@ -1173,7 +1173,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       }
     } catch (err) {
       prose.innerHTML = `<div class="state"><h1>This note didn't load</h1>
-        <p>GitHub didn't return the file. Check your connection and reload the page, or <a href="${gh}" rel="noopener">read it on GitHub</a>.</p></div>`;
+        <p>The note couldn't be fetched. Check your connection and reload the page.</p></div>`;
     }
   }
 
@@ -1474,6 +1474,6 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     })
     .catch(() => {
       main.innerHTML = `<div class="page"><div class="state"><h1>The notes index didn't load</h1>
-        <p>Reload the page. If it keeps happening, the notes are all on <a href="https://github.com/ammaryasser28">GitHub</a>.</p></div></div>`;
+        <p>Check your connection and reload the page.</p></div></div>`;
     });
 })();
