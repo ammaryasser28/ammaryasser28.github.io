@@ -1198,3 +1198,11 @@ a.ct:hover { transform: translateY(-3px); border-color: var(--cobalt); }
   .tr-note.stuck li:has(> .tr-chip:not(.tr-course)) { display: none; }
   .tr-pager b { display: none; }
 }
+
+/* collapsed sidebar: the arrow sits beside the logo, on the edge of the bar */
+body.nav-collapsed .nav-top { position: relative; }
+body.nav-collapsed .collapse {
+  position: absolute; top: 50%; right: -14px; width: 28px; height: 28px; margin-top: -14px;
+  background: var(--surface); box-shadow: 0 4px 14px -4px rgb(0 0 0 / .45); z-index: 2;
+}
+body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
