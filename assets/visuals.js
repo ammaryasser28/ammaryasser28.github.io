@@ -231,9 +231,10 @@ window.Visuals = (() => {
   /* monogram for the sidebar */
   const monogram = () => `
     <svg class="monogram" viewBox="0 0 96 96" aria-hidden="true">
-      <rect width="96" height="96" rx="24" class="mono-bg"/>
-      <path d="M48 16 l26 10 v20 c0 17 -11 28 -26 34 c-15 -6 -26 -17 -26 -34 v-20z" class="mono-shield"/>
-      <text x="48" y="58" text-anchor="middle" class="mono-text">BY</text>
+      <defs><linearGradient id="mono-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a72ff"/><stop offset="1" stop-color="#1c37a6"/></linearGradient></defs>
+      <rect width="96" height="96" rx="24" fill="url(#mono-g)"/>
+      <path d="M48 15 74 25v21c0 17-10.5 29-26 36-15.5-7-26-19-26-36V25z" fill="#fff"/>
+      <path class="mono-pulse" pathLength="1" d="M30 50h9l5.5-13 8 25 5.5-12h8" fill="none" stroke="#2343c4" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`;
 
   /* ---------- motion ---------- */
