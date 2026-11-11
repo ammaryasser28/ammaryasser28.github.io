@@ -136,9 +136,13 @@ circle.ring { fill: none; stroke: var(--cobalt); stroke-opacity: calc(.25 + var(
 @keyframes alert-in { 0%, 30% { opacity: 0; transform: translate(300px, 10px); } 38%, 92% { opacity: 1; transform: translate(300px, 18px); } 100% { opacity: 0; transform: translate(300px, 18px); } }
 @keyframes blink { 50% { opacity: .25; } }
 .monogram { width: 40px; height: 40px; display: block; flex: none; }
-.mono-bg { fill: #2747c9; }
-.mono-shield { fill: none; stroke: #fff; stroke-opacity: .35; stroke-width: 2; }
-.mono-text { fill: #fff; font: 700 26px var(--font); letter-spacing: .5px; }
+.monogram { border-radius: 11px; box-shadow: 0 8px 18px -10px #2747c9; transition: transform .3s cubic-bezier(.3,1.5,.5,1); }
+.brand:hover .monogram { transform: scale(1.06) rotate(-3deg); }
+.mono-pulse { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.brand:hover .mono-pulse { animation: pulse-draw .9s cubic-bezier(.4,0,.2,1); }
+@keyframes pulse-draw { from { stroke-dashoffset: 1; } }
+.brand-text b { font-weight: 700; color: var(--cobalt); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* ---------- app shell ---------- */
 :root { --nav-w: 272px; --top-h: 64px; }
@@ -1021,9 +1025,14 @@ html[data-lang="en"] .ar { display: none !important; }
 .cert-tabs button:hover { color: var(--ink); border-color: var(--cobalt); }
 .cert-tabs button[aria-pressed="true"] { background: var(--cobalt); border-color: var(--cobalt); color: var(--on-cobalt); }
 .certs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+.certs > li { display: flex; flex-direction: column; border-radius: 16px; border: 1px solid var(--rule); background: var(--surface); transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .25s, opacity .6s ease; }
+.certs > li:hover { transform: translateY(-4px); border-color: var(--cobalt); box-shadow: 0 18px 34px -22px var(--cobalt); }
 .certs > li[hidden] { display: none; }
-.cert { display: flex; flex-direction: column; gap: 3px; width: 100%; height: 100%; padding: 10px 10px 14px; border-radius: 16px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); font: inherit; text-align: left; cursor: zoom-in; transition: transform .25s cubic-bezier(.2,.7,.2,1), border-color .2s, box-shadow .25s; }
-.cert:hover { transform: translateY(-4px); border-color: var(--cobalt); box-shadow: 0 18px 34px -22px var(--cobalt); }
+.cert-verify { display: flex; align-items: center; justify-content: center; gap: 7px; margin: 0 10px 10px; height: 36px; border-radius: 10px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); text-decoration: none; font-size: 13.5px; font-weight: 600; transition: background .2s, color .2s, border-color .2s; }
+.cert-verify .i { width: 16px; height: 16px; color: #23b37a; }
+.cert-verify:hover { background: var(--cobalt); border-color: var(--cobalt); color: var(--on-cobalt); }
+.cert-verify:hover .i { color: inherit; }
+.cert { display: flex; flex-direction: column; gap: 3px; width: 100%; flex: 1; padding: 10px 10px 12px; border: 0; border-radius: 16px; background: none; color: var(--ink); font: inherit; text-align: left; cursor: zoom-in; }
 .cert-img { position: relative; display: block; aspect-ratio: 1122 / 794; margin-bottom: 9px; border-radius: 9px; overflow: hidden; background: #e9eaec; }
 .cert-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s cubic-bezier(.2,.7,.2,1); }
 .cert:hover .cert-img img { transform: scale(1.04); }
@@ -1076,6 +1085,5 @@ a.ct:hover { transform: translateY(-3px); border-color: var(--cobalt); }
   .lb-close { right: 0; }
   /* home: the tagline sits centred with the rest of the hero on a phone */
   .welcome .tagline { border-inline-start: 0; padding-inline-start: 0; margin-inline: auto; }
-  .welcome .actions .btn.primary { flex: 1 1 100%; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { .who-open i, .t-caret, .lightbox[open] { animation: none; } }
