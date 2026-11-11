@@ -16,6 +16,17 @@
   const enc = (path) => path.split('/').map(encodeURIComponent).join('/');
   const minutes = (w) => Math.max(1, Math.round(w / 200));
   const trackBy = (slug) => DATA.tracks.find((t) => t.slug === slug);
+  // "You are here": a home button, then a pill for each level above this page, then the page itself.
+  // Always left to right, also on an Arabic note. `extra` is anything to put at the far end.
+  const trail = (parts, here = '', extra = '', cls = '') => `
+      <nav class="trail ${cls}" aria-label="You are here" dir="ltr">
+        <ol>
+          <li><a class="tr-home" href="./" aria-label="Dashboard" title="Dashboard">${ic('home')}</a></li>
+          ${parts.map((x) => `<li><a class="tr-chip${x.c ? ' tr-course' : ''}" href="${x.href}"${x.c ? ` data-c="${x.c}"` : ''}>${x.num ? `<span class="tr-num">${x.num}</span>` : ''}<span>${x.html || esc(x.label)}</span></a></li>`).join('')}
+          ${here ? `<li class="tr-here" aria-current="page"><span>${here}</span></li>` : ''}
+        </ol>${extra}
+      </nav>`;
+  const courseCrumb = (t) => ({ href: `?t=${t.slug}`, label: t.name, c: t.slug, num: DATA.tracks.indexOf(t) + 1 });
   const noteHref = (t, path) => `?t=${t.slug}&n=${encodeURIComponent(path)}`;
   const flatNotes = (t) => t.sections.flatMap((s) => s.notes.map((n) => ({ ...n, section: s.name })));
   // the exact commit GitHub reported on this visit, so an edit shows at once (the branch name is cached for minutes)
@@ -355,7 +366,7 @@
     const pct = Math.round((readTotal / total) * 100);
     main.innerHTML = `
     <div class="page courses-page">
-      <p class="crumbs"><a href="./">Dashboard</a> / Courses</p>
+${trail([], 'Courses')}
       <header class="cp-head reveal">
         <div class="cp-text">
           <h1>Courses</h1>
@@ -402,7 +413,7 @@
     const shown = live.filter((e) => !starFilter || e.kind === starFilter);
     main.innerHTML = `
     <div class="page stars-page">
-      <p class="crumbs"><a href="./">Dashboard</a> / Starred</p>
+${trail([], 'Starred')}
       <header class="cp-head reveal">
         <div class="cp-text">
           <h1>Starred</h1>
@@ -500,7 +511,7 @@
     const photo = `<span class="avatar xl"><img src="${PHOTO}" alt="${ME.name}" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">AY</span></span>`;
     main.innerHTML = `
     <div class="page who">
-      <p class="crumbs"><a href="./">Dashboard</a> / <code>whoami</code></p>
+${trail([], '<code>whoami</code>')}
 
       <header class="who-hero reveal">
         <div class="profile-bg" aria-hidden="true"><span class="beam"></span><span class="beam b2"></span></div>
@@ -854,7 +865,7 @@
     const topics = topicsOf(t);
     main.innerHTML = `
     <div class="page course-page" data-c="${t.slug}">
-      <p class="crumbs"><a href="./">Dashboard</a> / <a href="?courses">Courses</a></p>
+${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       <header class="course-hero reveal">
         <div class="ch-text">
           <h1>${esc(t.name)}</h1>
@@ -866,10 +877,7 @@
             <div><b data-count="${Math.round(t.words / 200 / 60)}">${Math.round(t.words / 200 / 60)}</b><span>Hours of reading</span></div>
             <div class="ring" style="--p:${pct}"><svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="16"/><circle cx="20" cy="20" r="16" class="fg"/></svg><span><b>${pct}%</b><small>${d}/${t.count} read</small></span></div>
           </div>
-          <div class="ch-links">
-            ${t.status ? `<span class="status">${esc(t.status)}</span>` : ''}
-            <a href="https://github.com/${DATA.owner}/${t.repo}" rel="noopener" target="_blank">${ic('github')}View the repository</a>
-          </div>
+          ${t.status ? `<div class="ch-links"><span class="status">${esc(t.status)}</span></div>` : ''}
         </div>
         ${V.courseMap(t.slug, topics.map((s) => ({ name: s.name, count: s.notes.length })))}
       </header>
@@ -1065,6 +1073,7 @@
   }
 
   let readWatch = null;
+  let trailWatch = null;
   async function renderNote(t, path) {
     const all = flatNotes(t);
     const i = all.findIndex((n) => n.path === path);
@@ -1073,10 +1082,18 @@
     store.set('last', { t: t.slug, n: path });
     const gh = `https://github.com/${DATA.owner}/${t.repo}/blob/${DATA.branch}/${enc(path)}`;
     const read = isRead(t, path);
+    const tops = topicsOf(t);
+    const topIdx = tops.findIndex((x) => x.notes.some((m) => m.path === path));
 
     main.innerHTML = `
     <div class="reader3">
       <article class="note" data-c="${t.slug}">
+        ${trail([courseCrumb(t), ...(topIdx >= 0 ? [{ href: `?t=${t.slug}#topic-${topIdx}`, label: tops[topIdx].name }] : [])], `<span dir="auto">${esc(n.title)}</span>`, `
+        <span class="tr-pager">
+          ${i > 0 ? `<a href="${noteHref(t, all[i - 1].path)}" aria-label="Previous note: ${esc(all[i - 1].title)}" title="Previous: ${esc(all[i - 1].title)}">${ic('chev')}</a>` : `<span class="off">${ic('chev')}</span>`}
+          <b>${i + 1} / ${all.length}</b>
+          ${i >= 0 && i < all.length - 1 ? `<a class="nx" href="${noteHref(t, all[i + 1].path)}" aria-label="Next note: ${esc(all[i + 1].title)}" title="Next: ${esc(all[i + 1].title)}">${ic('chev')}</a>` : `<span class="off nx">${ic('chev')}</span>`}
+        </span>`, 'tr-note')}
         <header class="note-head">
           ${(() => {
             const tops = topicsOf(t);
@@ -1084,7 +1101,6 @@
             const k = Math.max(0, tops[ti].notes.findIndex((m) => m.path === path));
             return V.noteMap(t.slug, tops.map((x) => ({ name: x.name, count: x.notes.length })), ti, k, (j) => `?t=${t.slug}#topic-${j}`);
           })()}
-          <p class="crumbs"><a href="./">Dashboard</a> / <a href="?t=${t.slug}">${esc(t.name)}</a>${n.section ? ` / ${esc(n.section)}` : ''}</p>
           <h1>${esc(n.title)}</h1>
           <div class="meta">
             <span id="read-chip" class="read-chip${read ? ' done' : ''}">${read ? 'Read' : `${minutes(n.words || 200)} min read`}</span>
@@ -1103,6 +1119,13 @@
     </div>`;
     V.enhance(main);
     if (!location.hash) scrollTo(0, 0);
+    // once the title has scrolled away, the bar that stays on top shows it
+    if (trailWatch) trailWatch.disconnect();
+    const bar = main.querySelector('.tr-note'), h1 = main.querySelector('.note-head h1');
+    if ('IntersectionObserver' in window && bar && h1) {
+      trailWatch = new IntersectionObserver(([e]) => bar.classList.toggle('stuck', !e.isIntersecting && e.boundingClientRect.top < 120), { rootMargin: '-110px 0px 0px 0px' });
+      trailWatch.observe(h1);
+    }
 
     const prose = document.getElementById('prose');
     try {
