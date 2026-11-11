@@ -98,6 +98,17 @@
     monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
     log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
     shield: '<path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
+    term: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="m7 10 3 2.5L7 15M12.5 15H17"/>',
+    download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
+    phone: '<path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"/>',
+    pin: '<path d="M12 21s7-6.2 7-11.5a7 7 0 0 0-14 0C5 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    brief: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/>',
+    cap: '<path d="m2.5 9.5 9.5-5 9.5 5-9.5 5z"/><path d="M6.5 12v4.5c1.5 1.5 3.5 2 5.5 2s4-.5 5.5-2V12M21.5 9.5V15"/>',
+    award: '<circle cx="12" cy="9" r="5.5"/><path d="m8.5 13.5-1.5 7 5-2.5 5 2.5-1.5-7"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/>',
+    zoom: '<circle cx="11" cy="11" r="6"/><path d="m20 20-4.5-4.5M11 8.5v5M8.5 11h5"/>',
+    close: '<path d="M6 6l12 12M18 6 6 18"/>',
+    tools: '<path d="M14.5 6.5a4 4 0 0 0 5 5l-9 9a2.1 2.1 0 0 1-3-3l9-9a4 4 0 0 0-2-2z"/><path d="m4 4 4.5 4.5"/>',
   };
   const ic = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${I[name]}</svg>`;
   const avatar = (cls) => `<span class="avatar ${cls}"><img src="${PHOTO}" alt="Bn Yasser" loading="lazy" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">BY</span></span>`;
@@ -112,7 +123,8 @@
     const p = new URLSearchParams(location.search);
     const cur = p.get('t'), curNote = p.get('n');
     const onCourses = p.has('courses') && !cur;
-    const onHome = !cur && !onCourses;
+    const onMe = p.has('whoami') && !cur;
+    const onHome = !cur && !onCourses && !onMe;
     if (!onCourses) coursesFold = null;
     const open = coursesFold === null ? (onCourses || !!cur) : !coursesFold;
     const animate = open && !coursesWasOpen;
@@ -127,6 +139,7 @@
         <a class="nav-item${onHome ? ' active' : ''}" href="./">${ic('home')}<span>Dashboard</span></a>
         <a class="nav-item" href="./#picks">${ic('star')}<span>Start here</span></a>
         <button class="nav-item" type="button" data-focus-search>${ic('search')}<span>Search notes</span><kbd>/</kbd></button>
+        <a class="nav-item nav-who${onMe ? ' active' : ''}" href="?whoami" title="About the author">${ic('term')}<span><code>whoami</code></span></a>
         <a class="nav-item nav-courses${onCourses ? ' active' : ''}" href="?courses" aria-expanded="${open}" aria-controls="nav-courses">${ic('layers')}<span>Courses</span><span class="nc-count">${DATA.tracks.length}</span>${ic('chev', 'i nc-chev')}</a>
         <div class="nav-group${open && !animate ? ' open' : ''}" id="nav-courses"><div class="ng-inner">
         ${DATA.tracks.map((t, i) => {
@@ -149,7 +162,7 @@
         <a class="nav-item" href="https://github.com/ammaryasser28" rel="noopener" target="_blank">${ic('github')}<span>GitHub</span></a>
         <a class="nav-item" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener" target="_blank">${ic('linkedin')}<span>LinkedIn</span></a>
       </nav>
-      <a class="nav-me" href="./#about">${avatar('sm')}<span><b>Bn Yasser</b><small>SOC Analyst</small></span></a>`;
+      <a class="nav-me" href="?whoami" title="About the author">${avatar('sm')}<span><b>Bn Yasser</b><small>SOC Analyst</small></span></a>`;
     navEl.querySelector('.collapse').addEventListener('click', () => {
       const c = document.body.classList.toggle('nav-collapsed');
       store.set('collapsed', c);
@@ -254,6 +267,7 @@
     if (t) return renderTrack(t);
     if (p.get('t')) return renderMissing();
     if (p.has('courses')) return renderCourses();
+    if (p.has('whoami')) return renderWhoami();
     renderHome();
   }
   function setTitle(s) { document.title = s ? `${s} | Bn Yasser` : 'Bn Yasser | Blue Team Notes'; }
@@ -316,6 +330,248 @@
     scrollTo(0, 0);
   }
 
+  /* ---------- whoami: the author's profile ---------- */
+  const ME = {
+    name: 'Amr Yasser', role: 'SOC Analyst (Tier 1)', place: 'Cairo, Egypt',
+    email: 'amry02077@gmail.com', phone: '+20 115 556 3245', tel: '+201155563245',
+    linkedin: 'https://www.linkedin.com/in/bn-yasser-424bb4215/', github: 'https://github.com/ammaryasser28',
+    cv: 'assets/Amr_Yasser_SOC_Analyst_CV.pdf',
+    summary: 'SOC Analyst (Tier 1 / L1) with a Computer Science degree and a SOC-specialized Cybersecurity Diploma. Hands-on in security monitoring, alert triage, log analysis and incident investigation with Splunk SIEM, Wireshark, and Windows Security Event Logs.',
+    about: [
+      'I build detection and response labs mapped to MITRE ATT&CK, mentor Cybersecurity Diploma students, and administer Active Directory daily in an enterprise environment.',
+      'I also write up everything I study and publish it here as Blue Team Notes, so the next analyst can learn it faster.',
+    ],
+    facts: [['Based in', 'Cairo, Egypt'], ['Focus', 'SOC, detection and response'], ['Languages', 'Arabic (native), English'], ['Degree', 'B.Sc. Computer Science'], ['Military service', 'Completed'], ['Open to', 'SOC Analyst L1 roles']],
+    skills: [
+      ['shield', 'Security Operations', ['SIEM (Splunk)', 'Security Monitoring', 'Alert Triage', 'False-Positive Analysis', 'Log Analysis', 'Incident Response', 'Incident Reporting', 'IOC Analysis', 'Threat Hunting', 'Threat Intelligence', 'Phishing & Email Analysis', 'SOAR & Automation', 'Basic Malware Analysis', 'Vulnerability Assessment']],
+      ['layers', 'Frameworks', ['MITRE ATT&CK', 'Cyber Kill Chain', 'Pyramid of Pain', 'NIST Cybersecurity Framework', 'Zero Trust']],
+      ['net', 'Network Security', ['Wireshark', 'TCP/IP', 'OSI Model', 'ARP / DHCP / DNS / HTTP Analysis', 'IDS/IPS', 'Firewalls (FortiGate)', 'VLANs', 'Port Security', 'DHCP Snooping', 'Dynamic ARP Inspection']],
+      ['lock', 'Windows & Identity', ['Active Directory', 'Kerberos & NTLM', 'Windows Security Event Logs', 'Sysmon', 'PowerShell Logging', 'EDR Concepts', 'NTFS Permissions', 'Windows Hardening']],
+      ['tools', 'Systems & Tools', ['Linux (Ubuntu, Kali)', 'Bash', 'Python (Basic Scripting)', 'Git', 'GitHub Actions', 'VMware', 'Cisco IOS', 'Cisco Packet Tracer', 'Yersinia', 'arpspoof']],
+    ],
+    jobs: [
+      { t: 'Cybersecurity Mentor', kind: 'Part-time', org: 'Route Academy', when: 'Jul 2026 – Present', now: true, pts: [
+        'Mentor Cybersecurity Diploma students (SOC track) and run weekly hands-on workshops covering the Introduction to Cybersecurity and Cybersecurity Essentials courses.',
+        'Design hands-on SOC labs end to end (attack, detect, mitigate): lab environment, step-by-step tasks, explanation material, and graded assignments.',
+        'Review and grade student incident reports, giving feedback on evidence, indicators of compromise, and recommended mitigations.'] },
+      { t: 'IT Support Specialist', kind: '', org: 'NG University', when: 'Oct 2025 – Present', now: true, pts: [
+        'Administer Active Directory user accounts, security groups, permissions, and password resets, following access control and least-privilege practices.',
+        'Triage, document, and resolve user incidents and service requests through Zoho ServiceDesk Plus, escalating when needed.',
+        'Configure Cisco switches (VLANs, Port Security) and manage endpoints with ManageEngine Desktop Central and ADManager Plus.'] },
+      { t: 'Coding Instructor', kind: 'Part-time', org: 'iSchool', when: 'May 2026 – Jul 2026', pts: [
+        'Delivered hands-on coding sessions and technical training to scholarship students, focusing on programming logic and foundational computer science concepts.'] },
+    ],
+    edu: [
+      { t: 'Cybersecurity Diploma, SOC Specialization', org: 'Route Academy', when: 'Dec 2025 – Jul 2026', d: 'Introduction to Cybersecurity, Cybersecurity Essentials, Cybersecurity Attacks, and Incident Response (SIEM, threat hunting, incident handling).' },
+      { t: 'B.Sc. Computer Science', org: 'Thebes Academy, Higher Institute for Computer Sciences', when: 'Sep 2020 – May 2024', d: '' },
+    ],
+    courses: [
+      ['Security', ['SANS SEC450 (Blue Team Fundamentals)', 'CompTIA Security+', 'Fortinet FortiGate Firewall']],
+      ['Networking & Systems', ['Cisco CCNA Routing & Switching', 'CompTIA Network+', 'CompTIA A+', 'Linux Admin I']],
+    ],
+    certs: [
+      { id: 'thm-soc-level-1', t: 'SOC Level 1', sub: 'Learning Path', by: 'TryHackMe', when: 'Jul 2026', meta: '65 hours', cred: 'THM-WVSXPXHGHY' },
+      { id: 'thm-cyber-security-101', t: 'Cyber Security 101', sub: 'Learning Path', by: 'TryHackMe', when: 'Jun 2026', meta: '45 hours', cred: 'THM-3DOLGSALWQ' },
+      { id: 'thm-pre-security', t: 'Pre Security', sub: 'Learning Path', by: 'TryHackMe', when: 'May 2026', meta: '19 hours', cred: 'THM-IUBGPUWF9W' },
+      { id: 'anthropic-claude-101', t: 'Claude 101', sub: 'Certificate of Completion', by: 'Anthropic', when: '', meta: '', cred: '' },
+    ],
+  };
+  let whoTimer = 0;
+  function renderWhoami() {
+    document.title = 'Amr Yasser | SOC Analyst';
+    const total = DATA.tracks.reduce((a, t) => a + t.count, 0);
+    const issuers = [...new Set(ME.certs.map((c) => c.by))];
+    const sec = (id, icon, title, sub, body, cls = '') => `
+      <section class="who-sec ${cls}" id="${id}" aria-labelledby="${id}-h">
+        <div class="who-head reveal"><span class="panel-ico">${ic(icon)}</span><div><h2 id="${id}-h">${title}</h2>${sub ? `<p>${sub}</p>` : ''}</div></div>
+        ${body}
+      </section>`;
+    const photo = `<span class="avatar xl"><img src="${PHOTO}" alt="${ME.name}" onerror="this.parentElement.classList.add('fallback');this.remove()"><span class="avatar-fb" aria-hidden="true">AY</span></span>`;
+    main.innerHTML = `
+    <div class="page who">
+      <p class="crumbs"><a href="./">Dashboard</a> / <code>whoami</code></p>
+
+      <header class="who-hero reveal">
+        <div class="profile-bg" aria-hidden="true"><span class="beam"></span><span class="beam b2"></span></div>
+        <div class="who-id">
+          ${photo}
+          <div class="who-text">
+            <p class="who-open"><i></i>Open to SOC Analyst roles</p>
+            <h1>${ME.name}</h1>
+            <p class="who-role">${ME.role}<span>${ic('pin')}${ME.place}</span></p>
+            <p class="who-sum">${esc(ME.summary)}</p>
+            <div class="actions">
+              <a class="btn primary" href="${ME.cv}" download target="_blank" rel="noopener">${ic('download')}Download CV</a>
+              <a class="btn" href="${ME.linkedin}" target="_blank" rel="noopener">${ic('linkedin')}LinkedIn</a>
+              <a class="btn" href="${ME.github}" target="_blank" rel="noopener">${ic('github')}GitHub</a>
+              <a class="btn icon-only" href="mailto:${ME.email}" aria-label="Send an email" title="Send an email">${ic('mail')}</a>
+            </div>
+          </div>
+        </div>
+        <div class="term" role="img" aria-label="Terminal: whoami prints amr_yasser, a SOC Analyst in Cairo, Egypt">
+          <div class="term-bar"><i></i><i></i><i></i><span>amr@blue-team: ~</span></div>
+          <div class="term-body" id="term" aria-hidden="true"></div>
+        </div>
+      </header>
+
+      <nav class="who-nav reveal" aria-label="Sections of this page">
+        ${[['about', 'About'], ['skills', 'Skills'], ['experience', 'Experience'], ['projects', 'Projects'], ['education', 'Education'], ['certifications', 'Certifications'], ['contact', 'Contact']].map(([h, l]) => `<a href="#${h}">${l}</a>`).join('')}
+      </nav>
+
+      ${sec('about', 'user', 'About', '', `
+        <div class="who-about">
+          <div class="panel reveal who-bio">${ME.about.map((x) => `<p>${esc(x)}</p>`).join('')}
+            <div class="who-nums">
+              <div><b data-count="${total}">${total}</b><span>Notes published</span></div>
+              <div><b data-count="${DIAGRAMS}">${DIAGRAMS}</b><span>Interactive diagrams</span></div>
+              <div><b data-count="${ME.certs.length}">${ME.certs.length}</b><span>Certificates</span></div>
+            </div>
+          </div>
+          <dl class="panel reveal who-facts" style="--d:1">${ME.facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+        </div>`)}
+
+      ${sec('skills', 'shield', 'Skills', 'What I work with, grouped the way a SOC uses it.', `
+        <div class="who-skills">${ME.skills.map(([icon, name, list], i) => `
+          <div class="panel reveal skill${i === 0 ? ' wide' : ''}" style="--d:${i % 3}">
+            <h3>${ic(icon)}${esc(name)}</h3>
+            <ul class="chips">${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          </div>`).join('')}
+        </div>`)}
+
+      ${sec('experience', 'brief', 'Experience', '', `
+        <ol class="tl">${ME.jobs.map((j, i) => `
+          <li class="reveal${j.now ? ' now' : ''}" style="--d:${i}">
+            <div class="panel">
+              <div class="tl-top"><h3>${esc(j.t)}${j.kind ? `<small>${j.kind}</small>` : ''}</h3><span class="tl-when">${j.when}</span></div>
+              <p class="tl-org">${esc(j.org)}</p>
+              <ul>${j.pts.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+            </div>
+          </li>`).join('')}
+        </ol>`)}
+
+      ${sec('projects', 'diagram', 'Projects', '', `
+        <div class="who-projects">
+          <article class="panel reveal proj">
+            <p class="proj-kind">Home lab · 2026</p>
+            <h3>SOC Detection &amp; Response Lab Series</h3>
+            <p>A home SOC lab on VMware (Kali Linux, Ubuntu, Windows 11) with isolated host-only networking, plus Cisco Packet Tracer. Every lab follows an Attack, Detect, Mitigate workflow and ends with an incident report mapped to MITRE ATT&amp;CK.</p>
+            <ul class="proj-list">
+              <li><b>Windows Security Monitoring:</b> investigated suspicious account creation and privileged group changes through Security Event IDs 4720, 4732 and 4726, and enforced least privilege with NTFS permissions.</li>
+              <li><b>Man-in-the-Middle Attacks:</b> simulated ARP spoofing and DHCP starvation / rogue DHCP, detected them in Wireshark, and mitigated with Dynamic ARP Inspection and DHCP Snooping (T1557.002, T1557.003).</li>
+              <li><b>PCAP Investigation:</b> analyzed a MAC flooding capture, identified CAM table overflow indicators, and contained the attack with switch Port Security.</li>
+              <li><b>Network Traffic Analysis:</b> baselined ARP, ICMP, DHCP, DNS, HTTP and TCP traffic with Wireshark filters, and exposed cleartext credentials in HTTP versus HTTPS.</li>
+            </ul>
+            <ul class="chips sm">${['VMware', 'Wireshark', 'Windows Event Logs', 'Packet Tracer', 'MITRE ATT&CK'].map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+          </article>
+          <article class="panel reveal proj" style="--d:1">
+            <p class="proj-kind">Personal project · 2026</p>
+            <h3>Blue Team Notes</h3>
+            <p>This site: a free learning platform for aspiring SOC analysts. ${total} study notes across ${DATA.tracks.length} courses, from Pre-Security to SANS SEC450, with ${DIAGRAMS} interactive diagrams, section-level search, and a full English version of every note.</p>
+            <ul class="proj-list">
+              <li><b>Automated publishing:</b> every push to a course repository rebuilds the search index and renders its diagrams with GitHub Actions, so new notes go live with no manual steps.</li>
+              <li><b>Bilingual:</b> every note in Arabic with English terms, or English only.</li>
+            </ul>
+            <ul class="chips sm">${['JavaScript', 'GitHub Actions', 'GitHub Pages', 'Mermaid', 'Technical Writing'].map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+            <a class="btn proj-go" href="?courses">${ic('layers')}Browse the courses</a>
+          </article>
+        </div>`)}
+
+      ${sec('education', 'cap', 'Education &amp; Courses', '', `
+        <div class="who-edu">
+          <div class="edu-col">${ME.edu.map((e, i) => `
+            <div class="panel reveal edu" style="--d:${i}">
+              <div class="tl-top"><h3>${esc(e.t)}</h3><span class="tl-when">${e.when}</span></div>
+              <p class="tl-org">${esc(e.org)}</p>${e.d ? `<p class="edu-d">${esc(e.d)}</p>` : ''}
+            </div>`).join('')}
+          </div>
+          <div class="panel reveal who-courses" style="--d:1">
+            <h3>Courses completed</h3>
+            ${ME.courses.map(([g, list]) => `<p class="cg">${esc(g)}</p><ul class="chips">${list.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`).join('')}
+          </div>
+        </div>`)}
+
+      ${sec('certifications', 'award', 'Certifications', 'Select a certificate to view it full size.', `
+        <div class="cert-tabs reveal" role="group" aria-label="Filter certificates by issuer">
+          <button type="button" data-f="" aria-pressed="true">All<span>${ME.certs.length}</span></button>
+          ${issuers.map((x) => `<button type="button" data-f="${esc(x)}" aria-pressed="false">${esc(x)}<span>${ME.certs.filter((c) => c.by === x).length}</span></button>`).join('')}
+        </div>
+        <ul class="certs">${ME.certs.map((c, i) => `
+          <li class="reveal" style="--d:${i % 4}" data-by="${esc(c.by)}">
+            <button type="button" class="cert" data-full="assets/certs/${c.id}.jpg" data-title="${esc(`${c.t}, ${c.by}`)}">
+              <span class="cert-img"><img src="assets/certs/${c.id}-sm.jpg" alt="${esc(`${c.t} certificate from ${c.by}, awarded to Amr Yasser`)}" loading="lazy" width="720" height="${c.by === 'Anthropic' ? 556 : 510}"><span class="cert-zoom">${ic('zoom')}</span></span>
+              <span class="cert-by">${esc(c.by)}</span>
+              <strong>${esc(c.t)}</strong>
+              <span class="cert-sub">${esc([c.sub, c.when, c.meta].filter(Boolean).join(' · '))}</span>
+              ${c.cred ? `<span class="cert-id">ID ${c.cred}</span>` : ''}
+            </button>
+          </li>`).join('')}
+        </ul>
+        <dialog class="lightbox" aria-label="Certificate"><button type="button" class="lb-close" aria-label="Close">${ic('close')}</button><img alt=""></dialog>`)}
+
+      ${sec('contact', 'mail', 'Contact', 'The fastest way to reach me is email or LinkedIn.', `
+        <div class="who-contact">
+          <a class="panel reveal ct" href="mailto:${ME.email}"><span class="panel-ico">${ic('mail')}</span><span><small>Email</small><b>${ME.email}</b></span></a>
+          <a class="panel reveal ct" style="--d:1" href="tel:${ME.tel}"><span class="panel-ico">${ic('phone')}</span><span><small>Phone</small><b>${ME.phone}</b></span></a>
+          <a class="panel reveal ct" style="--d:2" href="${ME.linkedin}" target="_blank" rel="noopener"><span class="panel-ico">${ic('linkedin')}</span><span><small>LinkedIn</small><b>bn-yasser-424bb4215</b></span></a>
+          <div class="panel reveal ct" style="--d:3"><span class="panel-ico">${ic('pin')}</span><span><small>Location</small><b>${ME.place}</b></span></div>
+        </div>
+        <div class="who-cta reveal">
+          <p>Hiring for a SOC team, or have a question about the notes?</p>
+          <div class="actions"><a class="btn primary" href="mailto:${ME.email}?subject=${encodeURIComponent('Hello Amr')}">${ic('mail')}Send a message</a><a class="btn" href="${ME.cv}" download target="_blank" rel="noopener">${ic('download')}Download CV</a></div>
+        </div>`)}
+    </div>`;
+    V.enhance(main);
+
+    // the terminal types its commands once, then stays
+    clearTimeout(whoTimer);
+    const term = document.getElementById('term');
+    const lines = [['whoami', 'amr_yasser'], ['cat role.txt', 'SOC Analyst (Tier 1) · Cairo, Egypt'], ['ls skills/', 'siem/  log-analysis/  incident-response/\nactive-directory/  network-security/'], ['cat status.txt', 'open to SOC Analyst roles']];
+    const prompt = '<span class="t-p">amr@blue-team</span><span class="t-c">:</span><span class="t-d">~</span><span class="t-c">$</span> ';
+    const row = (cmd, out) => `<div class="t-row">${prompt}<span class="t-cmd">${esc(cmd)}</span></div>${out === null ? '' : `<div class="t-out">${esc(out)}</div>`}`;
+    const done = () => { term.innerHTML = `${lines.map(([c, o]) => row(c, o)).join('')}<div class="t-row">${prompt}<span class="t-caret"></span></div>`; };
+    if (reduceMotion()) done();
+    else {
+      let li = 0, ci = 0;
+      const step = () => {
+        if (!term.isConnected) return;
+        if (li >= lines.length) return done();
+        const [cmd] = lines[li];
+        term.innerHTML = `${lines.slice(0, li).map(([c, o]) => row(c, o)).join('')}<div class="t-row">${prompt}<span class="t-cmd">${esc(cmd.slice(0, ci))}</span><span class="t-caret"></span></div>`;
+        if (ci < cmd.length) { ci++; whoTimer = setTimeout(step, 55 + Math.random() * 60); }
+        else { li++; ci = 0; whoTimer = setTimeout(step, 420); }
+      };
+      whoTimer = setTimeout(step, 500);
+    }
+
+    // certificates: filter by issuer, open full size
+    const tabs = [...main.querySelectorAll('.cert-tabs button')];
+    tabs.forEach((b) => b.addEventListener('click', () => {
+      tabs.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      main.querySelectorAll('.certs > li').forEach((li) => { li.hidden = !!b.dataset.f && li.dataset.by !== b.dataset.f; });
+    }));
+    const lb = main.querySelector('.lightbox'), lbImg = lb.querySelector('img');
+    main.querySelectorAll('.cert').forEach((c) => c.addEventListener('click', () => {
+      lbImg.src = c.dataset.full; lbImg.alt = `${c.dataset.title} certificate`;
+      if (lb.showModal) lb.showModal(); else window.open(c.dataset.full, '_blank', 'noopener');
+    }));
+    lb.addEventListener('click', (e) => { if (e.target !== lbImg) lb.close(); });
+
+    // the section links light up as their section comes on screen
+    const links = [...main.querySelectorAll('.who-nav a')];
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver((es) => es.forEach((e) => {
+        if (!e.isIntersecting) return;
+        links.forEach((a) => {
+          const on = a.getAttribute('href') === `#${e.target.id}`;
+          a.classList.toggle('on', on);
+          if (on) { const nav = a.parentElement; nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: 'smooth' }); }
+        });
+      }), { rootMargin: '-30% 0px -60% 0px' });
+      main.querySelectorAll('.who-sec').forEach((x) => io.observe(x));
+    }
+    if (location.hash) setTimeout(() => scrollToHash(location.hash), 80); else scrollTo(0, 0);
+  }
+
   function renderHome() {
     setTitle('');
     const total = DATA.tracks.reduce((a, t) => a + t.count, 0);
@@ -338,12 +594,12 @@
             <h1>Bn Yasser</h1>
             <p class="role">SOC Analyst</p>
             <p class="tagline">Documenting everything I learn in blue team, so others can learn it faster.</p>
-            <p class="bio">${total} notes from four security courses, from networking basics to SANS SEC450. I build hands-on SOC labs and write up everything I study, so it can be read again before an investigation or an interview.</p>
+            <p class="bio">${total} notes across four security courses, from networking basics to SANS SEC450, each with interactive diagrams and a full English version.</p>
             <div class="actions">
               <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
-              <a class="btn" href="https://github.com/ammaryasser28" target="_blank" rel="noopener">${ic('github')}GitHub</a>
-              <a class="btn" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" target="_blank" rel="noopener">${ic('linkedin')}LinkedIn</a>
-              <a class="btn icon-only" href="mailto:amry02077@gmail.com" aria-label="Send an email">${ic('mail')}</a>
+              <a class="btn btn-who" href="?whoami" title="About the author">${ic('term')}<code>whoami</code></a>
+              <a class="btn icon-only" href="https://github.com/ammaryasser28" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">${ic('github')}</a>
+              <a class="btn icon-only" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn">${ic('linkedin')}</a>
             </div>
           </div>
           <aside class="focus-box" aria-label="What the notes cover">
