@@ -1157,3 +1157,44 @@ a.ct:hover { transform: translateY(-3px); border-color: var(--cobalt); }
 .star-empty li .i { width: 18px; height: 18px; color: var(--cobalt); flex: none; }
 #stars .section-head { align-items: center; }
 @media (prefers-reduced-motion: reduce) { .star.pop .star-i, .se-star .star-i { animation: none; } }
+
+/* ---------- trail: "you are here" ---------- */
+.trail { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 0 0 14px; font-size: 13.5px; text-align: left; }
+.who .trail, .stars-page .trail { margin-bottom: -6px; }
+.trail ol { flex: 1; min-width: 0; display: flex; align-items: center; list-style: none; margin: 0; padding: 2px 0; overflow-x: auto; scrollbar-width: none; }
+.trail ol::-webkit-scrollbar { display: none; }
+.trail li { display: flex; align-items: center; flex: none; min-width: 0; }
+.trail li + li::before { content: ""; width: 6px; height: 6px; margin: 0 9px 0 7px; border-top: 1.6px solid var(--muted); border-right: 1.6px solid var(--muted); transform: rotate(45deg); opacity: .55; flex: none; }
+.tr-home, .tr-chip { display: inline-flex; align-items: center; gap: 7px; height: 30px; border-radius: 99px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); text-decoration: none; font-weight: 500; white-space: nowrap; transition: border-color .2s, background .2s, color .2s, transform .2s; }
+.tr-home { width: 30px; justify-content: center; color: var(--muted); }
+.tr-home .i { width: 16px; height: 16px; }
+.tr-chip { padding: 0 12px; max-width: 320px; }
+.tr-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.tr-home:hover, .tr-chip:hover { border-color: var(--cobalt); color: var(--cobalt); transform: translateY(-1px); }
+.tr-chip.tr-course { padding-left: 4px; background: var(--ac-soft); border-color: var(--ac-line); color: var(--ac); font-weight: 600; }
+.tr-chip.tr-course:hover { border-color: var(--ac); color: var(--ac); }
+.tr-num { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--ac); color: var(--on-cobalt); font: 700 12px var(--font); flex: none; }
+.tr-here { flex: 0 1 auto !important; color: var(--muted); font-weight: 600; }
+.tr-here > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-here code { font: 500 .95em var(--mono); }
+.tr-pager { flex: none; display: inline-flex; align-items: center; gap: 2px; padding: 2px; border-radius: 99px; border: 1px solid var(--rule); background: var(--paper); }
+.tr-pager b { padding: 0 6px; font: 500 12.5px var(--mono); color: var(--muted); white-space: nowrap; }
+.tr-pager a, .tr-pager .off { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); transition: background .2s, color .2s; }
+.tr-pager .i { width: 15px; height: 15px; }
+.tr-pager .nx .i { transform: rotate(180deg); }
+.tr-pager a:hover { background: var(--ac, var(--cobalt)); color: var(--on-cobalt); }
+.tr-pager .off { opacity: .3; }
+/* in a note the bar stays under the search bar while reading, and shows the note's title once it has scrolled away */
+.tr-note { position: sticky; top: calc(var(--top-h) + 20px); z-index: 6; margin: -8px -10px 14px; padding: 6px 10px; border-radius: 14px; border: 1px solid transparent; transition: background .25s, border-color .25s, box-shadow .25s; }
+.tr-note .tr-here { display: none; }
+.tr-note.stuck { background: color-mix(in srgb, var(--surface) 90%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-color: var(--rule); box-shadow: 0 14px 30px -22px rgb(0 0 0 / .6); }
+.tr-note.stuck .tr-here { display: flex; color: var(--ink); }
+.tr-note.stuck .tr-chip:not(.tr-course) { max-width: 170px; }
+@media (max-width: 720px) {
+  .trail { gap: 8px; font-size: 13px; }
+  .tr-chip { max-width: 190px; padding: 0 10px; }
+  .tr-note { top: calc(var(--top-h) + 14px); margin-inline: -6px; padding-inline: 6px; }
+  .tr-note.stuck .tr-chip:not(.tr-course) { display: none; }
+  .tr-note.stuck li:has(> .tr-chip:not(.tr-course)) { display: none; }
+  .tr-pager b { display: none; }
+}
