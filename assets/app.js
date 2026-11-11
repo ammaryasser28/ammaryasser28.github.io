@@ -45,6 +45,52 @@
     if (DATA) { const y = scrollY; route(true); if (!new URLSearchParams(location.search).get('n')) setTimeout(() => scrollTo(0, y), 0); }
   }));
   const key = (t, path) => `${t.slug}|${path}`;
+
+  /* ---------- stars: notes, sections and diagrams a reader wants to come back to ---------- */
+  // Saved in this browser, newest first. A section is remembered by its position in the note (j) and a
+  // diagram by its number (d), never by its text, so a star made in one language shows in the other too.
+  let STARS = store.get('stars', []);
+  if (!Array.isArray(STARS)) STARS = [];
+  const starKey = (e) => `${e.t}|${e.n}${e.kind === 'sec' ? `#${e.j}` : e.kind === 'dg' ? `@${e.d}` : ''}`;
+  const isStar = (k) => STARS.some((e) => e.k === k);
+  const noteStarred = (t, path) => isStar(`${t.slug}|${path}`);
+  const STAR_SVG = '<svg class="star-i" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3.6 2.6 5.4 5.9.7-4.4 4 1.2 5.9L12 16.7l-5.3 2.9 1.2-5.9-4.4-4 5.9-.7z"/></svg>';
+  const STAR_WORD = { note: 'note', sec: 'section', dg: 'diagram' };
+  const starBtn = (e, cls = '', text = false) => {
+    const k = starKey(e), on = isStar(k);
+    return `<button type="button" class="star ${cls}" data-star="${esc(k)}" data-star-e="${esc(JSON.stringify(e))}" aria-pressed="${on}" aria-label="Star this ${STAR_WORD[e.kind]}" title="${on ? 'Remove the star' : `Star this ${STAR_WORD[e.kind]} to find it again under Starred`}">${STAR_SVG}${text ? '<span class="s-off">Star</span><span class="s-on">Starred</span>' : ''}</button>`;
+  };
+  const starMark = (t, path) => (noteStarred(t, path) ? `<span class="star-mark" title="Starred">${STAR_SVG}</span>` : '');
+  const starHref = (e) => { const t = trackBy(e.t); return `${noteHref(t, e.n)}${e.kind === 'sec' ? `#~s${e.j}` : e.kind === 'dg' ? `#diagram-${e.d}` : ''}`; };
+  // the title of a starred section in the language being read, when the headings index has it
+  const starTitle = (e) => {
+    if (e.kind === 'note') return e.title;
+    const cur = LANG === 'en' ? 'en' : 'mix';
+    const lists = HEADS.get(`${e.t}|${e.n}`);
+    if (e.lang !== cur && lists && lists[e.lang] && lists[cur]) {
+      const i = lists[e.lang].indexOf(e.title);
+      if (i >= 0 && lists[cur][i]) return lists[cur][i];
+    }
+    return e.title;
+  };
+  document.addEventListener('click', (ev) => {
+    const b = ev.target.closest('[data-star]');
+    if (!b) return;
+    ev.preventDefault(); ev.stopPropagation();
+    let e; try { e = JSON.parse(b.dataset.starE); } catch (err) { return; }
+    const k = b.dataset.star, had = isStar(k);
+    STARS = had ? STARS.filter((x) => x.k !== k) : [{ ...e, k, at: Date.now() }, ...STARS];
+    store.set('stars', STARS);
+    renderNav();
+    const p = new URLSearchParams(location.search);
+    if (p.has('starred') || (!p.get('t') && !p.has('courses') && !p.has('whoami'))) { const y = scrollY; route(true); scrollTo(0, y); return; }
+    document.querySelectorAll('[data-star]').forEach((x) => {
+      if (x.dataset.star !== k) return;
+      x.setAttribute('aria-pressed', String(!had));
+      x.title = had ? `Star this ${STAR_WORD[e.kind]} to find it again under Starred` : 'Remove the star';
+      if (!had) { x.classList.remove('pop'); void x.offsetWidth; x.classList.add('pop'); }
+    });
+  }, true);
   const isRead = (t, path) => readSet.has(key(t, path));
   const readCount = (t) => flatNotes(t).filter((n) => isRead(t, n.path)).length;
   function markRead(t, path) {
@@ -124,7 +170,8 @@
     const cur = p.get('t'), curNote = p.get('n');
     const onCourses = p.has('courses') && !cur;
     const onMe = p.has('whoami') && !cur;
-    const onHome = !cur && !onCourses && !onMe;
+    const onStars = p.has('starred') && !cur;
+    const onHome = !cur && !onCourses && !onMe && !onStars;
     if (!onCourses) coursesFold = null;
     const open = coursesFold === null ? (onCourses || !!cur) : !coursesFold;
     const animate = open && !coursesWasOpen;
@@ -137,7 +184,7 @@
       <nav class="nav-scroll" aria-label="Site">
         <p class="nav-label">Main</p>
         <a class="nav-item${onHome ? ' active' : ''}" href="./">${ic('home')}<span>Dashboard</span></a>
-        <a class="nav-item" href="./#picks">${ic('star')}<span>Start here</span></a>
+        <a class="nav-item nav-stars${onStars ? ' active' : ''}" href="?starred">${ic('star')}<span>Starred</span>${STARS.length ? `<span class="nc-count">${STARS.length}</span>` : ''}</a>
         <button class="nav-item" type="button" data-focus-search>${ic('search')}<span>Search notes</span><kbd>/</kbd></button>
         <a class="nav-item nav-who${onMe ? ' active' : ''}" href="?whoami" title="About the author">${ic('term')}<span><code>whoami</code></span></a>
         <a class="nav-item nav-courses${onCourses ? ' active' : ''}" href="?courses" aria-expanded="${open}" aria-controls="nav-courses">${ic('layers')}<span>Courses</span><span class="nc-count">${DATA.tracks.length}</span>${ic('chev', 'i nc-chev')}</a>
@@ -154,7 +201,7 @@
           ${open ? `<div class="tree">${t.sections.map((s) => `
             <p class="tree-sec">${esc(s.name)}</p>
             ${s.notes.map((n) => `<a class="tree-item${n.path === curNote ? ' current' : ''}${isRead(t, n.path) ? ' read' : ''}" href="${noteHref(t, n.path)}">
-              <span class="dot">${ic('check', 'tick')}</span><span>${esc([...n.sub, n.title].join(' / '))}</span></a>`).join('')}`).join('')}
+              <span class="dot">${ic('check', 'tick')}</span><span>${esc([...n.sub, n.title].join(' / '))}</span>${starMark(t, n.path)}</a>`).join('')}`).join('')}
           </div>` : ''}`;
         }).join('')}
         </div></div>
@@ -264,6 +311,7 @@
     if (p.get('t')) return renderMissing();
     if (p.has('courses')) return renderCourses();
     if (p.has('whoami')) return renderWhoami();
+    if (p.has('starred')) return renderStarred();
     renderHome();
   }
   function setTitle(s) { document.title = s ? `${s} | Bn Yasser` : 'Bn Yasser | Blue Team Notes'; }
@@ -323,6 +371,73 @@
       ${courseCards()}
     </div>`;
     V.enhance(main);
+    scrollTo(0, 0);
+  }
+
+  /* ---------- starred ---------- */
+  const STAR_KIND = { note: ['notes', 'Note'], sec: ['log', 'Section'], dg: ['diagram', 'Diagram'] };
+  // rows for a list of stars; ones whose note no longer exists are left out
+  const starList = (list) => `
+        <ul class="star-list">${list.filter((e) => trackBy(e.t) && flatNotes(trackBy(e.t)).some((x) => x.path === e.n)).map((e, i) => {
+          const t = trackBy(e.t), note = flatNotes(t).find((x) => x.path === e.n);
+          const [icon, word] = STAR_KIND[e.kind] || STAR_KIND.note;
+          const title = e.kind === 'dg' ? `Diagram: ${starTitle(e)}` : starTitle(e);
+          return `
+          <li class="reveal" style="--d:${i % 6}" data-c="${t.slug}">
+            <a href="${starHref(e)}">
+              <span class="sl-ico">${ic(icon)}</span>
+              <span class="sl-text"><b dir="auto">${esc(title)}</b><small>${word} · ${esc(t.name)}${e.kind === 'note' ? (note.section ? ` / ${esc(note.section)}` : '') : ` / ${esc(note.title)}`}</small></span>
+              <span class="sl-go" aria-hidden="true">${ic('chev')}</span>
+            </a>
+            ${starBtn(e, 'star-row')}
+          </li>`; }).join('')}
+        </ul>`;
+  let starFilter = '';
+  function renderStarred() {
+    setTitle('Starred');
+    if (!HEADS.size) loadHeads()?.then(() => { if (HEADS.size && new URLSearchParams(location.search).has('starred') && STARS.some((e) => e.kind !== 'note')) { const y = scrollY; renderStarred(); scrollTo(0, y); } });
+    const live = STARS.filter((e) => trackBy(e.t) && flatNotes(trackBy(e.t)).some((x) => x.path === e.n));
+    const count = (k) => live.filter((e) => e.kind === k).length;
+    if (starFilter && !count(starFilter)) starFilter = '';
+    const shown = live.filter((e) => !starFilter || e.kind === starFilter);
+    main.innerHTML = `
+    <div class="page stars-page">
+      <p class="crumbs"><a href="./">Dashboard</a> / Starred</p>
+      <header class="cp-head reveal">
+        <div class="cp-text">
+          <h1>Starred</h1>
+          <p>Everything you starred, in one place: whole notes, single sections and diagrams. Each one opens exactly where you left the star.</p>
+        </div>
+        <div class="ch-stats cp-stats">
+          <div><b data-count="${count('note')}">${count('note')}</b><span>Notes</span></div>
+          <div><b data-count="${count('sec')}">${count('sec')}</b><span>Sections</span></div>
+          <div><b data-count="${count('dg')}">${count('dg')}</b><span>Diagrams</span></div>
+        </div>
+      </header>
+      ${live.length ? `
+      <div class="cert-tabs star-tabs reveal" role="group" aria-label="Show one kind of star">
+        ${[['', 'All', live.length], ['note', 'Notes', count('note')], ['sec', 'Sections', count('sec')], ['dg', 'Diagrams', count('dg')]].filter(([k, , c]) => !k || c).map(([k, l, c]) => `<button type="button" data-kind="${k}" aria-pressed="${starFilter === k}">${l}<span>${c}</span></button>`).join('')}
+      </div>
+      ${DATA.tracks.filter((t) => shown.some((e) => e.t === t.slug)).map((t) => `
+      <section class="star-group" data-c="${t.slug}">
+        <h2 class="reveal"><a href="?t=${t.slug}">${esc(t.name)}</a><span>${shown.filter((e) => e.t === t.slug).length}</span></h2>
+        ${starList(shown.filter((e) => e.t === t.slug))}
+      </section>`).join('')}
+      <p class="fine">Stars are saved in this browser only.</p>` : `
+      <div class="star-empty reveal">
+        <span class="se-star">${STAR_SVG}</span>
+        <h2>Nothing starred yet</h2>
+        <p>Star anything you want to come back to, before an interview or in the middle of an investigation.</p>
+        <ul>
+          <li>${ic('notes')}<span><b>A note:</b> the Star button under its title.</span></li>
+          <li>${ic('log')}<span><b>A section:</b> the star beside its heading.</span></li>
+          <li>${ic('diagram')}<span><b>A diagram:</b> the star in its toolbar.</span></li>
+        </ul>
+        <a class="btn primary" href="?courses">${ic('layers')}Browse the courses</a>
+      </div>`}
+    </div>`;
+    V.enhance(main);
+    main.querySelectorAll('.star-tabs button').forEach((b) => b.addEventListener('click', () => { starFilter = b.dataset.kind; const y = scrollY; renderStarred(); scrollTo(0, y); }));
     scrollTo(0, 0);
   }
 
@@ -629,19 +744,11 @@
         </div>
       </section>
 
-      <section class="block" id="picks" aria-labelledby="picks-h">
-        <div class="section-head reveal"><h2 id="picks-h">Start here</h2><p>Eight notes worth reading first.</p></div>
-        <div class="picks">
-          ${picks.map((p, i) => `
-            <a class="pick tilt reveal${isRead(p.track, p.n) ? ' is-read' : ''}" data-c="${p.track.slug}" style="--d:${i % 4}" href="${noteHref(p.track, p.n)}">
-              <span class="pick-ico">${V.icon(p.icon)}</span>
-              <span class="pick-course">${esc(p.track.name)}</span>
-              <strong>${esc(p.note.title)}</strong>
-              <span class="pick-hook">${esc(p.hook)}</span>
-              <span class="pick-time">${isRead(p.track, p.n) ? `${ic('check')}Read` : `${minutes(p.note.words)} min read`}</span>
-            </a>`).join('')}
-        </div>
-      </section>
+      ${STARS.length ? `
+      <section class="block" id="stars" aria-labelledby="stars-h">
+        <div class="section-head reveal"><h2 id="stars-h">Your stars</h2><a class="panel-link" href="?starred">All ${STARS.length} starred${ic('chev')}</a></div>
+        ${starList(STARS.slice(0, 6))}
+      </section>` : ''}
 
     </div>`;
     V.enhance(main);
@@ -684,7 +791,7 @@
       sel = hits.length ? 0 : -1;
       list.innerHTML = hits.length
         ? hits.map((h, i) => `<li role="option" id="r${i}" aria-selected="${i === sel}"><a href="${h.href}">
-            <span class="r-title"><span>${mark(h.note.title, words)}</span>${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
+            <span class="r-title"><span>${mark(h.note.title, words)}</span>${starMark(h.track, h.note.path)}${isRead(h.track, h.note.path) ? `<span class="r-read">${ic('check')}</span>` : ''}</span>
             ${h.head >= 0 ? `<span class="r-head">${mark(h.hs[h.head], words)}</span>` : ''}
             <small>${esc(h.track.name)} / ${esc(h.note.section)}</small></a></li>`).join('')
         : `<li class="none">No note matches "${esc(input.value.trim())}". Try a shorter word, like "DNS" or "hash".</li>`;
@@ -788,7 +895,7 @@
             <ol class="topic-list">${s.notes.map((n, k) => `
               <li${k >= SHOW ? ' class="more" hidden' : ''}><a href="${noteHref(t, n.path)}" class="${isRead(t, n.path) ? 'read' : ''}" data-hay="${esc([n.title, ...n.sub, s.name].join(' ').toLowerCase())}">
                 <span class="idx">${isRead(t, n.path) ? ic('check', 'tick') : String(k + 1).padStart(2, '0')}</span>
-                <span class="c-title">${n.tagSub.length ? `<span class="tag">${esc(n.tagSub.join(' / '))}</span>` : ''}${esc(n.title)}</span>
+                <span class="c-title">${n.tagSub.length ? `<span class="tag">${esc(n.tagSub.join(' / '))}</span>` : ''}${esc(n.title)}${starMark(t, n.path)}</span>
                 <small>${minutes(n.words || 200)} min</small>
                 <span class="go" aria-hidden="true">${ic('chev')}</span>
               </a></li>`).join('')}
@@ -859,7 +966,13 @@
     box.innerHTML = html;
     const slug = slugger();
     const dirBase = path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '';
-    box.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach((h) => { h.id = slug(h.textContent); });
+    // data-j is the heading's place among the note's headings (its table of contents aside): the same number
+    // in the Arabic and the English version, which is how a starred section is found in either
+    let hj = 0;
+    box.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach((h) => {
+      h.id = slug(h.textContent);
+      if (!/^(table of contents|contents|الفهرس|المحتويات|فهرس المحتويات)$/i.test(h.textContent.trim())) h.dataset.j = hj++;
+    });
     box.querySelectorAll('h2,h3').forEach((h) => {
       if (/^(table of contents|contents|الفهرس|المحتويات|فهرس المحتويات)$/i.test(h.textContent.trim())) {
         let next = h.nextElementSibling;
@@ -890,6 +1003,7 @@
       const src = document.createElement('pre');
       src.className = 'mermaid'; src.textContent = dgSource(code.textContent);
       fig.dataset.h = h36(src.textContent);
+      fig.id = `diagram-${box.querySelectorAll('figure.diagram').length + 1}`;
       fig.appendChild(src);
       code.parentElement.replaceWith(fig);
     });
@@ -974,6 +1088,7 @@
           <h1>${esc(n.title)}</h1>
           <div class="meta">
             <span id="read-chip" class="read-chip${read ? ' done' : ''}">${read ? 'Read' : `${minutes(n.words || 200)} min read`}</span>
+            ${starBtn({ kind: 'note', t: t.slug, n: path, title: n.title }, 'star-note', true)}
             <span>Note ${i + 1} of ${all.length}</span>
             <span id="lang-chip">${LANG === 'en' ? 'English' : 'Arabic, with English terms'}</span>
             <a href="${gh}" rel="noopener" target="_blank">Open on GitHub</a>
@@ -1007,7 +1122,25 @@
       V.reveal(prose);
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       spy();
+      // a star on every section, and one waiting for each diagram's toolbar
+      const noteLang = got.en ? 'en' : 'mix';
+      let lastH = null, dn = 0;
+      prose.querySelectorAll('h2, h3, h4, figure.diagram').forEach((el) => {
+        if (el.tagName === 'FIGURE') {
+          dn += 1;
+          const title = lastH ? lastH.dataset.t : n.title;
+          el.dataset.starE = JSON.stringify({ kind: 'dg', t: t.slug, n: path, d: dn, h: lastH ? +lastH.dataset.j : -1, title, lang: noteLang });
+          return;
+        }
+        if (el.dataset.j === undefined) return;
+        el.dataset.t = el.textContent.trim();
+        lastH = el;
+        el.insertAdjacentHTML('beforeend', starBtn({ kind: 'sec', t: t.slug, n: path, j: +el.dataset.j, h: +el.dataset.j, title: el.dataset.t, lang: noteLang }, 'star-h'));
+      });
       drawDiagrams(prose, t, path);
+      // "#~s12" is section 12 of this note in whichever language is showing
+      const sm = /^#~s(\d+)$/.exec(location.hash);
+      if (sm) { const h = prose.querySelector(`[data-j="${sm[1]}"]`); if (h) history.replaceState({}, '', `${location.search}#${encodeURIComponent(h.id)}`); }
       if (location.hash) settleHash(location.hash);
       // the note counts as read once its last part has been on screen
       if (readWatch) readWatch.disconnect();
@@ -1156,6 +1289,10 @@
     n.setAttribute('data-processed', 'true');
     fig.classList.remove('pending');
     V.diagram(fig);
+    const tools = fig.querySelector('.dg-tools');
+    if (tools && fig.dataset.starE && !tools.querySelector('.star')) {
+      try { tools.insertAdjacentHTML('afterbegin', starBtn(JSON.parse(fig.dataset.starE), 'star-dg')); } catch (e) { /* no star for this one */ }
+    }
   }
   async function drawDiagrams(root, t, path) {
     const figs = [...root.querySelectorAll('.diagram')].filter((f) => f.querySelector('pre.mermaid'));
