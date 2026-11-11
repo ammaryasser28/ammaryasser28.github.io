@@ -131,7 +131,7 @@
     coursesWasOpen = open;
     navEl.innerHTML = `
       <div class="nav-top">
-        <a class="brand" href="./">${V.monogram()}<span class="brand-text">Blue Team Notes<small>by Bn Yasser</small></span></a>
+        <a class="brand" href="./" aria-label="Blue Team Notes, home">${V.monogram()}<span class="brand-text">Blue Team <b>Notes</b><small>by Bn Yasser</small></span></a>
         <button class="collapse" type="button" aria-label="Collapse the sidebar" title="Collapse the sidebar">${ic('chev')}</button>
       </div>
       <nav class="nav-scroll" aria-label="Site">
@@ -158,11 +158,7 @@
           </div>` : ''}`;
         }).join('')}
         </div></div>
-        <p class="nav-label">Explore</p>
-        <a class="nav-item" href="https://github.com/ammaryasser28" rel="noopener" target="_blank">${ic('github')}<span>GitHub</span></a>
-        <a class="nav-item" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" rel="noopener" target="_blank">${ic('linkedin')}<span>LinkedIn</span></a>
-      </nav>
-      <a class="nav-me" href="?whoami" title="About the author">${avatar('sm')}<span><b>Bn Yasser</b><small>SOC Analyst</small></span></a>`;
+      </nav>`;
     navEl.querySelector('.collapse').addEventListener('click', () => {
       const c = document.body.classList.toggle('nav-collapsed');
       store.set('collapsed', c);
@@ -370,10 +366,10 @@
       ['Networking & Systems', ['Cisco CCNA Routing & Switching', 'CompTIA Network+', 'CompTIA A+', 'Linux Admin I']],
     ],
     certs: [
-      { id: 'thm-soc-level-1', t: 'SOC Level 1', sub: 'Learning Path', by: 'TryHackMe', when: 'Jul 2026', meta: '65 hours', cred: 'THM-WVSXPXHGHY' },
-      { id: 'thm-cyber-security-101', t: 'Cyber Security 101', sub: 'Learning Path', by: 'TryHackMe', when: 'Jun 2026', meta: '45 hours', cred: 'THM-3DOLGSALWQ' },
-      { id: 'thm-pre-security', t: 'Pre Security', sub: 'Learning Path', by: 'TryHackMe', when: 'May 2026', meta: '19 hours', cred: 'THM-IUBGPUWF9W' },
-      { id: 'anthropic-claude-101', t: 'Claude 101', sub: 'Certificate of Completion', by: 'Anthropic', when: '', meta: '', cred: '' },
+      { id: 'thm-soc-level-1', t: 'SOC Level 1', sub: 'Learning Path', by: 'TryHackMe', when: 'Jul 2026', meta: '65 hours', cred: 'THM-WVSXPXHGHY', url: 'https://tryhackme.com/certificate/THM-WVSXPXHGHY' },
+      { id: 'thm-cyber-security-101', t: 'Cyber Security 101', sub: 'Learning Path', by: 'TryHackMe', when: 'Jun 2026', meta: '45 hours', cred: 'THM-3DOLGSALWQ', url: 'https://tryhackme.com/certificate/THM-3DOLGSALWQ' },
+      { id: 'thm-pre-security', t: 'Pre Security', sub: 'Learning Path', by: 'TryHackMe', when: 'May 2026', meta: '19 hours', cred: 'THM-IUBGPUWF9W', url: 'https://tryhackme.com/certificate/THM-IUBGPUWF9W' },
+      { id: 'anthropic-claude-101', t: 'Claude 101', sub: 'Certificate of Completion', by: 'Anthropic', when: '', meta: '', cred: '', url: 'https://verify.skilljar.com/c/rjnazd22nb47' },
     ],
   };
   let whoTimer = 0;
@@ -504,6 +500,7 @@
               <span class="cert-sub">${esc([c.sub, c.when, c.meta].filter(Boolean).join(' · '))}</span>
               ${c.cred ? `<span class="cert-id">ID ${c.cred}</span>` : ''}
             </button>
+            ${c.url ? `<a class="cert-verify" href="${c.url}" target="_blank" rel="noopener">${ic('check')}Verify certificate<span class="sr-only"> for ${esc(c.t)}</span></a>` : ''}
           </li>`).join('')}
         </ul>
         <dialog class="lightbox" aria-label="Certificate"><button type="button" class="lb-close" aria-label="Close">${ic('close')}</button><img alt=""></dialog>`)}
@@ -598,8 +595,6 @@
             <div class="actions">
               <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
               <a class="btn btn-who" href="?whoami" title="About the author">${ic('term')}<code>whoami</code></a>
-              <a class="btn icon-only" href="https://github.com/ammaryasser28" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">${ic('github')}</a>
-              <a class="btn icon-only" href="https://www.linkedin.com/in/bn-yasser-424bb4215/" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn">${ic('linkedin')}</a>
             </div>
           </div>
           <aside class="focus-box" aria-label="What the notes cover">
