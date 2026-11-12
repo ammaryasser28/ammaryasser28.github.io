@@ -183,6 +183,36 @@
   // "Courses" while already on that page folds or unfolds it (coursesFold), until the page changes
   let coursesFold = null;
   let coursesWasOpen = false;
+  // a course's notes as a tree: each folder is a group that opens and closes; the one holding the
+  // note on screen is open, and any the reader opened stay open while they move around
+  const navOpen = new Set();
+  function navTree(t, items, curNote, key) {
+    const out = [], groups = new Map();
+    items.forEach((x) => {
+      if (!x.rest.length) { out.push(x); return; }
+      const g = x.rest[0];
+      if (!groups.has(g)) { groups.set(g, []); out.push({ group: g }); }
+      groups.get(g).push({ n: x.n, rest: x.rest.slice(1) });
+    });
+    // inside a folder its "Overview" comes first
+    const ov = out.findIndex((x) => x.n && /^overview$/i.test(x.n.title.trim()));
+    if (ov > 0) out.unshift(out.splice(ov, 1)[0]);
+    return out.map((x) => {
+      if (x.n) {
+        const n = x.n;
+        return `<a class="tree-item${n.path === curNote ? ' current' : ''}${isRead(t, n.path) ? ' read' : ''}" href="${noteHref(t, n.path)}"${n.path === curNote ? ' aria-current="page"' : ''}>
+              <span class="dot">${ic('check', 'tick')}</span><span>${esc(n.title)}</span>${starMark(t, n.path)}</a>`;
+      }
+      const kids = groups.get(x.group), gk = `${key}/${x.group}`;
+      const has = kids.some((k) => k.n.path === curNote), o = has || navOpen.has(gk);
+      const all = kids.length;
+      const done = kids.filter((k) => isRead(t, k.n.path)).length;
+      return `<div class="tree-g${o ? ' open' : ''}${has ? ' has-cur' : ''}">
+            <button class="tree-grp" type="button" data-g="${esc(gk)}" aria-expanded="${o}">${ic('chev', 'i tg-chev')}<span>${esc(x.group)}</span><small>${done ? `${done}/` : ''}${all}</small></button>
+            <div class="tree-kids">${navTree(t, kids, curNote, gk)}</div>
+          </div>`;
+    }).join('');
+  }
   function renderNav() {
     if (!DATA) return;
     const p = new URLSearchParams(location.search);
@@ -201,10 +231,8 @@
         <button class="collapse" type="button" aria-label="Collapse the sidebar" title="Collapse the sidebar">${ic('chev')}</button>
       </div>
       <nav class="nav-scroll" aria-label="Site">
-        <p class="nav-label">Main</p>
         <a class="nav-item${onHome ? ' active' : ''}" href="./">${ic('home')}<span>Dashboard</span></a>
         <a class="nav-item nav-stars${onStars ? ' active' : ''}" href="?starred">${ic('star')}<span>Starred</span>${STARS.length ? `<span class="nc-count">${STARS.length}</span>` : ''}</a>
-        <button class="nav-item" type="button" data-focus-search>${ic('search')}<span>Search notes</span><kbd>/</kbd></button>
         <a class="nav-item nav-who${onMe ? ' active' : ''}" href="?whoami" title="About the author">${ic('term')}<span><code>whoami</code></span></a>
         <a class="nav-item nav-courses${onCourses ? ' active' : ''}" href="?courses" aria-expanded="${open}" aria-controls="nav-courses">${ic('layers')}<span>Courses</span><span class="nc-count">${DATA.tracks.length}</span>${ic('chev', 'i nc-chev')}</a>
         <div class="nav-group${open && !animate ? ' open' : ''}" id="nav-courses"><div class="ng-inner">
@@ -219,8 +247,7 @@
           </a>
           ${open ? `<div class="tree">${t.sections.map((s) => `
             <p class="tree-sec">${esc(s.name)}</p>
-            ${s.notes.map((n) => `<a class="tree-item${n.path === curNote ? ' current' : ''}${isRead(t, n.path) ? ' read' : ''}" href="${noteHref(t, n.path)}">
-              <span class="dot">${ic('check', 'tick')}</span><span>${esc([...n.sub, n.title].join(' / '))}</span>${starMark(t, n.path)}</a>`).join('')}`).join('')}
+            ${navTree(t, s.notes.map((n) => ({ n, rest: n.sub || [] })), curNote, `${t.slug}|${s.name}`)}`).join('')}
           </div>` : ''}`;
         }).join('')}
         </div></div>
@@ -229,7 +256,11 @@
       const c = document.body.classList.toggle('nav-collapsed');
       store.set('collapsed', c);
     });
-    navEl.querySelector('[data-focus-search]').addEventListener('click', () => { closeNav(); document.getElementById('q').focus(); });
+    navEl.querySelectorAll('.tree-grp').forEach((b) => b.addEventListener('click', () => {
+      const g = b.parentElement, o = g.classList.toggle('open');
+      b.setAttribute('aria-expanded', o);
+      if (o) navOpen.add(b.dataset.g); else navOpen.delete(b.dataset.g);
+    }));
     const group = navEl.querySelector('.nav-group');
     const btn = navEl.querySelector('.nav-courses');
     // closed items can't be tabbed to
@@ -507,6 +538,7 @@ ${trail([], 'Starred')}
     ],
   };
   let whoTimer = 0;
+  let whoScroll = null;
   function renderWhoami() {
     document.title = 'Amr Yasser | SOC Analyst';
     const total = DATA.tracks.reduce((a, t) => a + t.count, 0);
@@ -524,10 +556,10 @@ ${trail([], '<code>whoami</code>')}
       <header class="who-hero reveal">
         <div class="profile-bg" aria-hidden="true"><span class="beam"></span><span class="beam b2"></span></div>
         <div class="who-id">
-          ${photo}
+          <span class="who-ph">${photo}<i class="who-ring" aria-hidden="true"></i></span>
           <div class="who-text">
             <p class="who-open"><i></i>Open to SOC Analyst roles</p>
-            <h1>${ME.name}</h1>
+            <h1 aria-label="${esc(ME.name)}">${[...ME.name].map((ch, k) => `<span aria-hidden="true" style="--i:${k}">${ch === ' ' ? '&nbsp;' : esc(ch)}</span>`).join('')}</h1>
             <p class="who-role">${ME.role}<span>${ic('pin')}${ME.place}</span></p>
             <p class="who-sum">${esc(ME.summary)}</p>
             <div class="actions">
@@ -700,6 +732,33 @@ ${trail([], '<code>whoami</code>')}
       }), { rootMargin: '-30% 0px -60% 0px' });
       main.querySelectorAll('.who-sec').forEach((x) => io.observe(x));
     }
+    // a little life on the page: chips arrive one after another, the timeline fills as you read it,
+    // and panels catch a soft light under the pointer
+    main.querySelectorAll('.who .chips').forEach((ul) => [...ul.children].forEach((li, k) => li.style.setProperty('--ci', k)));
+    const tl = main.querySelector('.tl');
+    if (whoScroll) removeEventListener('scroll', whoScroll);
+    whoScroll = null;
+    if (tl && !reduceMotion()) {
+      let tick = 0;
+      const fill = () => {
+        tick = 0;
+        if (!tl.isConnected) { removeEventListener('scroll', whoScroll); return; }
+        const r = tl.getBoundingClientRect(), mid = innerHeight * 0.6;
+        tl.style.setProperty('--tl', Math.min(1, Math.max(0, (mid - r.top) / r.height)).toFixed(3));
+        tl.querySelectorAll(':scope > li').forEach((li) => li.classList.toggle('lit', li.getBoundingClientRect().top + 24 < mid));
+      };
+      whoScroll = () => { if (!tick) tick = requestAnimationFrame(fill); };
+      addEventListener('scroll', whoScroll, { passive: true });
+      fill();
+    } else if (tl) { tl.style.setProperty('--tl', 1); tl.querySelectorAll(':scope > li').forEach((li) => li.classList.add('lit')); }
+    if (matchMedia('(hover: hover)').matches && !reduceMotion()) {
+      main.querySelector('.who').addEventListener('pointermove', (e) => {
+        const p = e.target.closest && e.target.closest('.panel');
+        if (!p) return;
+        const r = p.getBoundingClientRect();
+        p.style.setProperty('--mx', `${e.clientX - r.left}px`); p.style.setProperty('--my', `${e.clientY - r.top}px`);
+      });
+    }
     if (location.hash) setTimeout(() => scrollToHash(location.hash), 80); else scrollTo(0, 0);
   }
 
@@ -835,7 +894,9 @@ ${trail([], '<code>whoami</code>')}
     list.addEventListener('click', () => { list.hidden = true; input.value = ''; });
     document.addEventListener('click', (e) => { if (!e.target.closest('.top-search')) list.hidden = true; });
     document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement !== input && !/input|textarea/i.test(document.activeElement.tagName)) { e.preventDefault(); input.focus(); }
+      const typing = /input|textarea/i.test(document.activeElement.tagName) || document.activeElement.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') { e.preventDefault(); input.focus(); input.select(); return; }
+      if (e.key === '/' && document.activeElement !== input && !typing) { e.preventDefault(); input.focus(); }
     });
   })();
 
