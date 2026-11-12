@@ -1315,7 +1315,8 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     box.querySelectorAll('a[href]').forEach((a) => {
       const href = a.getAttribute('href');
       if (/^https?:/i.test(href)) { a.target = '_blank'; a.rel = 'noopener'; return; }
-      if (href.startsWith('#')) return;
+      // "#..." stays on the page, and "?t=..." is already a site link (the lesson card makes those)
+      if (href.startsWith('#') || href.startsWith('?')) return;
       if (/\.md(#.*)?$/i.test(href)) {
         const [file, hash] = href.split('#');
         const resolved = decodeURIComponent(new URL(file, 'https://x/' + enc(dirBase)).pathname.slice(1));
