@@ -1391,3 +1391,9 @@ body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
 .t-alert .t-who { color: #c9d4e6; }
 @keyframes t-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .t-log { animation: none; } }
+
+/* a numbered sub-heading: the site's own small index instead of the number typed in the note */
+.prose :is(h3, h4).hn::before { content: attr(data-n); display: inline-grid; place-items: center; min-width: 1.6em; height: 1.6em; margin-inline-end: 10px; padding: 0 5px; border-radius: 7px; vertical-align: .12em; font: 600 .72em var(--mono); color: var(--ac, var(--marker)); background: color-mix(in srgb, var(--ac, var(--cobalt)) 14%, transparent); }
+.prose .analogy > :is(h3, h4).hn::before { display: none; }
+.prose table[dir="ltr"] { text-align: left; }
+.prose table[dir="ltr"] :is(th, td) { text-align: left; }
