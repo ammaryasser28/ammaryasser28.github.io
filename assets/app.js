@@ -155,6 +155,14 @@
     monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
     log: '<path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/>',
     shield: '<path d="M12 3 19 6v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/>',
+    c_info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.6v.2"/>',
+    c_bulb: '<path d="M9 18h6M10 21h4M8.5 14.5A6 6 0 1 1 15.5 14.5c-.6.5-1 1.200-1 2H9.500c0-.8-.4-1.500-1-2z"/>',
+    c_flag: '<path d="M5 21V4M5 4h11l-1.500 4L16 12H5"/>',
+    c_alert: '<path d="M12 4 21 19H3z"/><path d="M12 10v4M12 16.600v.2"/>',
+    c_target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+    c_key: '<circle cx="8" cy="15" r="4"/><path d="m11 12 8-8M16 7l2.500 2.500M14 9l2 2"/>',
+    c_copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/>',
+    c_list: '<path d="M9 6h11M9 12h11M9 18h11M4.500 6h.2M4.500 12h.2M4.500 18h.2"/>',
     term: '<rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="m7 10 3 2.5L7 15M12.5 15H17"/>',
     download: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 20h14"/>',
     phone: '<path d="M6.5 3.5h3l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2.2 2A16.5 16.5 0 0 1 4.5 5.7a2 2 0 0 1 2-2.2z"/>',
@@ -969,6 +977,125 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     };
   }
 
+  /* ---------- the lesson card: every note opens the same way ---------- */
+  // goal, level, prerequisites and what you can do by the end. The note's own info table and
+  // "Learning Objectives" section are used when it has them, otherwise data/lessons.json.
+  let LESSONS = {};
+  let lessonsP = null;
+  const loadLessons = () => lessonsP || (lessonsP = fetch('data/lessons.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).then((d) => { LESSONS = d || {}; }).catch(() => {}));
+  // note titles named in a prerequisite become links to those notes
+  let TITLES = null;
+  function linkTitles(html, t) {
+    if (!TITLES) {
+      const seen = new Map();
+      // an "Overview" note goes by its folder's name ("OSI Model", "Transport Layer")
+      DATA.tracks.forEach((tr) => flatNotes(tr).forEach((n) => {
+        const k = /^overview$/i.test(n.title.trim()) && n.path.includes('/') ? n.path.split('/').slice(-2, -1)[0] : n.title.trim();
+        seen.set(k, seen.has(k) ? null : { tr, n });
+      }));
+      TITLES = [...seen].filter(([k, v]) => v && k.length > 4).sort((a, b) => b[0].length - a[0].length);
+    }
+    const box = document.createElement('div'); box.innerHTML = html;
+    const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), nodes = [];
+    while (tw.nextNode()) if (!tw.currentNode.parentElement.closest('a')) nodes.push(tw.currentNode);
+    nodes.forEach((nd) => {
+      let txt = nd.nodeValue; const parts = [];
+      for (;;) {
+        let best = null;
+        for (const [k, v] of TITLES) {
+          const i = txt.indexOf(k);
+          if (i < 0 || /\w/.test(txt[i - 1] || '') || /\w/.test(txt[i + k.length] || '')) continue;
+          if (!best || i < best.i || (i === best.i && k.length > best.k.length)) best = { i, k, v };
+        }
+        if (!best) break;
+        parts.push(document.createTextNode(txt.slice(0, best.i)));
+        const a = document.createElement('a'); a.href = noteHref(best.v.tr, best.v.n.path); a.textContent = best.k; parts.push(a);
+        txt = txt.slice(best.i + best.k.length);
+      }
+      if (!parts.length) return;
+      parts.push(document.createTextNode(txt));
+      nd.replaceWith(...parts);
+    });
+    return box.innerHTML;
+  }
+  function lessonCard(box, t, path) {
+    const top = () => [...box.children].slice(0, 6);
+    let level = '', prereq = '', goal = '', objs = null, jx = null;
+    const tb = top().find((e) => e.tagName === 'TABLE');
+    if (tb) {
+      const hs = [...tb.querySelectorAll('th')].map((x) => x.textContent.trim().toLowerCase());
+      const row = tb.querySelector('tbody tr');
+      if (row && (hs.includes('level') || hs.includes('prerequisites'))) {
+        const cell = (k) => (hs.indexOf(k) >= 0 && row.children[hs.indexOf(k)] ? row.children[hs.indexOf(k)].innerHTML.trim() : '');
+        level = cell('level'); prereq = cell('prerequisites');
+        tb.remove();
+      }
+    }
+    let bq = top().find((e) => e.tagName === 'BLOCKQUOTE');
+    if (bq && bq.children.length === 1 && bq.firstElementChild.tagName === 'BLOCKQUOTE') { const inner = bq.firstElementChild; bq.replaceWith(inner); bq = inner; }
+    const p0 = bq && bq.firstElementChild, st = p0 && p0.firstChild;
+    const LBL = /^[\s:：]*(الهدف من الـ ?Section( ده)?|goal of this section)?[\s:：]*/i;
+    // a goal written as a plain paragraph ("الهدف من الـ Section ده: ...") counts too
+    const gp = !goal && !(st && st.nodeName === 'STRONG') && top().find((e) => e.tagName === 'P' && /^\s*(الهدف من الـ ?Section|goal of this section)/i.test(e.textContent));
+    if (gp) {
+      if (gp.firstChild && gp.firstChild.nodeType === 3) gp.firstChild.nodeValue = gp.firstChild.nodeValue.replace(LBL, '');
+      goal = `<p>${gp.innerHTML.trim()}</p>`;
+      gp.remove();
+    } else if (st && st.nodeName === 'STRONG' && /^\s*((the\s+)?goal|objective|الهدف)/i.test(st.textContent)) {
+      st.remove();
+      while (p0.firstChild && (p0.firstChild.nodeName === 'BR' || (p0.firstChild.nodeType === 3 && !p0.firstChild.nodeValue.replace(LBL, '')))) p0.firstChild.remove();
+      if (p0.firstChild && p0.firstChild.nodeType === 3) p0.firstChild.nodeValue = p0.firstChild.nodeValue.replace(LBL, '');
+      if (!p0.textContent.trim()) p0.remove();
+      goal = bq.innerHTML.trim();
+      bq.remove();
+    }
+    const lo = [...box.querySelectorAll('h2, h3')].find((h) => /^(learning objectives|أهداف التعلم)/i.test(h.textContent.trim()));
+    if (lo) {
+      jx = lo.dataset.j; objs = [];
+      const stop = lo.tagName === 'H2' ? /^H[12]$/ : /^H[123]$/;
+      let nx = lo.nextElementSibling;
+      while (nx && !stop.test(nx.tagName)) {
+        if (/^(UL|OL)$/.test(nx.tagName)) objs.push(...[...nx.children].map((li) => li.innerHTML.trim()));
+        const k = nx; nx = nx.nextElementSibling; k.remove();
+      }
+      lo.remove();
+    }
+    const L = LESSONS[`${t.slug}|${path}`] || {};
+    if (!level && L.level) level = esc(L.level);
+    if (!prereq && L.prereq) prereq = esc(L.prereq);
+    if (L.objectives) objs = L.objectives.map((x) => esc(x).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>'));
+    if (!goal && !level && !prereq && !(objs && objs.length)) return;
+    while (box.firstElementChild && box.firstElementChild.tagName === 'HR') box.firstElementChild.remove();
+    // a second big title at the top of the note repeats the page title, so it goes too
+    const jxs = jx != null ? [jx] : [];
+    if (box.firstElementChild && box.firstElementChild.tagName === 'H1') {
+      const h = box.firstElementChild;
+      if (h.dataset.j != null) jxs.push(h.dataset.j);
+      h.remove();
+      while (box.firstElementChild && box.firstElementChild.tagName === 'HR') box.firstElementChild.remove();
+    }
+    const ar = /[\u0600-\u06FF]/.test(goal);
+    const lv = level.replace(/<[^>]+>/g, '').trim();
+    const none = /^none\b/i.test(prereq.replace(/<[^>]+>/g, '').trim());
+    const card = document.createElement('section');
+    card.className = 'lesson';
+    if (jxs.length) card.dataset.jx = jxs.join(' ');
+    card.innerHTML = `
+      ${goal ? `<div class="ls-goal" dir="${ar ? 'rtl' : 'ltr'}"${ar ? ' lang="ar"' : ''}>
+        <p class="ls-label">${ic('c_target')}<span>${ar ? 'الهدف من الـ Section ده' : 'Goal of this section'}</span></p>
+        <div class="ls-text">${goal}</div>
+      </div>` : ''}
+      ${level || prereq ? `<dl class="ls-facts" dir="ltr">
+        ${level ? `<div class="ls-lv"><dt>Level</dt><dd><span class="ls-level ${/begin/i.test(lv) ? 'lv-b' : /adv/i.test(lv) ? 'lv-a' : 'lv-i'}"><i></i><i></i><i></i>${esc(lv)}</span></dd></div>` : ''}
+        ${prereq ? `<div class="ls-pre"><dt>Prerequisites</dt><dd>${none ? 'None. You can start with this note.' : linkTitles(prereq, t)}</dd></div>` : ''}
+      </dl>` : ''}
+      ${objs && objs.length ? `<div class="ls-obj" dir="ltr">
+        <p class="ls-label">${ic('check')}<span>By the end of this note, you will be able to</span></p>
+        <ul>${objs.map((x) => `<li>${x}</li>`).join('')}</ul>
+      </div>` : ''}`;
+    box.prepend(card);
+  }
+
   function prepare(html, t, path) {
     const box = document.createElement('div');
     box.innerHTML = html;
@@ -991,19 +1118,66 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
         h.remove();
       }
     });
+    lessonCard(box, t, path);
     box.querySelectorAll('table').forEach((tb) => { const w = document.createElement('div'); w.className = 'table'; tb.replaceWith(w); w.appendChild(tb); });
-    const LABEL = { NOTE: 'Note', TIP: 'Tip', IMPORTANT: 'Important', WARNING: 'Warning', CAUTION: 'Caution' };
+    // a "**bold**" the Markdown parser left as text (it does that next to Arabic punctuation)
+    {
+      const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), todo = [];
+      while (tw.nextNode()) { const nd = tw.currentNode; if (/\*\*[^*\n]+\*\*/.test(nd.nodeValue) && !nd.parentElement.closest('pre, code')) todo.push(nd); }
+      todo.forEach((nd) => {
+        const f = document.createDocumentFragment();
+        nd.nodeValue.split(/\*\*([^*\n]+)\*\*/).forEach((part, k) => {
+          if (!part) return;
+          if (k % 2) { const b = document.createElement('strong'); b.textContent = part; f.appendChild(b); } else f.appendChild(document.createTextNode(part));
+        });
+        nd.replaceWith(f);
+      });
+    }
+    // callouts: GitHub's [!NOTE] kind, and any quote that opens with a bold label ("Goal of this section:")
+    const KIND = { NOTE: ['Note', 'c_info'], TIP: ['Tip', 'c_bulb'], IMPORTANT: ['Important', 'c_flag'], WARNING: ['Warning', 'c_alert'], CAUTION: ['Caution', 'c_alert'] };
+    const callout = (bq, kind, label, icon) => {
+      bq.classList.add('callout', kind);
+      const tt = document.createElement('p'); tt.className = 'callout-title';
+      tt.innerHTML = `${ic(icon)}<span dir="auto">${esc(label)}</span>`;
+      bq.prepend(tt);
+    };
     box.querySelectorAll('blockquote').forEach((bq) => {
       const p = bq.querySelector('p');
       if (!p) return;
       const m = p.innerHTML.match(/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(<br>)?\s*/i);
-      if (!m) return;
-      const kind = m[1].toUpperCase();
-      p.innerHTML = p.innerHTML.slice(m[0].length);
+      if (m) {
+        const kind = m[1].toUpperCase();
+        p.innerHTML = p.innerHTML.slice(m[0].length);
+        if (!p.textContent.trim()) p.remove();
+        callout(bq, kind.toLowerCase(), KIND[kind][0], KIND[kind][1]);
+        return;
+      }
+      const st = p.firstChild;
+      if (!st || st.nodeName !== 'STRONG' || p !== bq.firstElementChild) return;
+      const raw = st.textContent.trim(), nx = st.nextSibling;
+      const after = nx ? (nx.nodeType === 3 ? nx.nodeValue : nx.nodeName === 'BR' ? '\n' : 'x') : '\n';
+      if (raw.length > 44 || !(/[:：]$/.test(raw) || /^\s*[:：]/.test(after) || /^\s*\n/.test(after))) return;
+      const label = raw.replace(/\s*[:：]$/, '');
+      const [kind, icon] = /^(the\s+)?goal|objective|الهدف/i.test(label) ? ['goal', 'c_target']
+        : /warning|caution|danger|تحذير|خطر|انتبه/i.test(label) ? ['warning', 'c_alert']
+        : /\btip\b|نصيحة|نصيحه/i.test(label) ? ['tip', 'c_bulb']
+        : /^note|ملحوظة|ملحوظه|ملاحظة/i.test(label) ? ['note', 'c_info']
+        : /important|مهم/i.test(label) ? ['important', 'c_flag']
+        : /mitre/i.test(label) ? ['mitre', 'shield'] : ['key', 'c_key'];
+      st.remove();
+      while (p.firstChild && (p.firstChild.nodeName === 'BR' || (p.firstChild.nodeType === 3 && !p.firstChild.nodeValue.replace(/^[\s:：]+/, '')))) p.firstChild.remove();
+      if (p.firstChild && p.firstChild.nodeType === 3) p.firstChild.nodeValue = p.firstChild.nodeValue.replace(/^[\s:：]+/, '');
       if (!p.textContent.trim()) p.remove();
-      bq.classList.add('callout', kind.toLowerCase());
-      const tt = document.createElement('p'); tt.className = 'callout-title'; tt.textContent = LABEL[kind];
-      bq.prepend(tt);
+      callout(bq, kind, label, icon);
+    });
+    // an analogy gets its own card: the heading and everything under it, up to the next heading
+    box.querySelectorAll('h3, h4').forEach((h) => {
+      if (!/^(ال)?تشبيه|analogy\s*$|^analogy/i.test(h.textContent.trim())) return;
+      const card = document.createElement('aside'); card.className = 'analogy';
+      h.before(card);
+      let nx = h.nextSibling; card.appendChild(h);
+      while (nx && !(nx.nodeType === 1 && /^(H[1-6]|HR)$/.test(nx.tagName))) { const mv = nx; nx = nx.nextSibling; card.appendChild(mv); }
+      h.insertAdjacentHTML('afterbegin', ic('c_bulb'));
     });
     box.querySelectorAll('pre > code.language-mermaid').forEach((code) => {
       const fig = document.createElement('figure');
@@ -1015,7 +1189,14 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       fig.appendChild(src);
       code.parentElement.replaceWith(fig);
     });
-    box.querySelectorAll('pre').forEach((pre) => pre.setAttribute('dir', 'ltr'));
+    box.querySelectorAll('pre').forEach((pre) => {
+      pre.setAttribute('dir', 'ltr');
+      if (pre.classList.contains('mermaid') || pre.closest('figure')) return;
+      const code = pre.querySelector('code'), lang = code && (code.className.match(/language-([\w+#-]+)/) || [])[1];
+      const w = document.createElement('div'); w.className = 'code'; w.setAttribute('dir', 'ltr');
+      w.innerHTML = `<div class="code-head"><span>${esc(lang || 'code')}</span><button class="code-copy" type="button" data-copy>${ic('c_copy')}<span>Copy</span></button></div>`;
+      pre.replaceWith(w); w.appendChild(pre);
+    });
     box.querySelectorAll('img').forEach((img) => {
       const src = img.getAttribute('src') || '';
       if (src && !/^(https?:|data:)/i.test(src)) {
@@ -1050,10 +1231,18 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   function tocFrom(box) {
     const hs = [...box.querySelectorAll('h2, h3')];
     if (hs.length < 3) return '<div></div>';
+    // sections are numbered like in the note; a section's sub-headings show while you are reading it
+    const groups = []; let k = 0;
+    hs.forEach((h) => {
+      if (h.tagName === 'H2') groups.push({ h, num: String(++k).padStart(2, '0'), subs: [] });
+      else if (groups.length) groups[groups.length - 1].subs.push(h);
+      else groups.push({ h, num: '', subs: [] });
+    });
+    const link = (h, cls, num) => `<a class="${cls}" href="#${encodeURIComponent(h.id)}">${num ? `<span class="tn">${num}</span>` : ''}<span class="tt">${esc(h.textContent.trim())}</span></a>`;
     return `
-      <aside class="toc" aria-label="On this page">
-        <h2>On this page</h2>
-        <ol dir="${box.getAttribute('dir') || 'ltr'}">${hs.map((h) => `<li><a class="${h.tagName === 'H3' ? 'l3' : ''}" href="#${encodeURIComponent(h.id)}">${esc(h.textContent)}</a></li>`).join('')}</ol>
+      <aside class="toc toc2" aria-label="On this page">
+        <div class="toc-head">${ic('c_list')}<h2>On this page</h2><b class="toc-pct">0%</b></div>
+        <ol dir="${box.getAttribute('dir') || 'ltr'}">${groups.map((g) => `<li class="tg">${link(g.h, 'l2', g.num)}${g.subs.length ? `<ol class="ts">${g.subs.map((x) => `<li>${link(x, 'l3')}</li>`).join('')}</ol>` : ''}</li>`).join('')}</ol>
       </aside>`;
   }
 
@@ -1073,7 +1262,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   }
 
   let readWatch = null;
-  let trailWatch = null;
+  let trailWatch = null, pinWatch = null;
   async function renderNote(t, path) {
     const all = flatNotes(t);
     const i = all.findIndex((n) => n.path === path);
@@ -1121,15 +1310,25 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     if (!location.hash) scrollTo(0, 0);
     // once the title has scrolled away, the bar that stays on top shows it
     if (trailWatch) trailWatch.disconnect();
+    if (pinWatch) pinWatch.disconnect();
+    {
+      const b = main.querySelector('.tr-note');
+      if (b && 'IntersectionObserver' in window) {
+        const sent = document.createElement('i'); sent.className = 'tr-sent'; sent.setAttribute('aria-hidden', 'true'); b.before(sent);
+        const off = Math.ceil(parseFloat(getComputedStyle(b).top) || 0) + 1;
+        pinWatch = new IntersectionObserver(([e]) => b.classList.toggle('pinned', !e.isIntersecting && e.boundingClientRect.top < off + 8), { rootMargin: `-${off}px 0px 0px 0px` });
+        pinWatch.observe(sent);
+      }
+    }
     const bar = main.querySelector('.tr-note'), h1 = main.querySelector('.note-head h1');
     if ('IntersectionObserver' in window && bar && h1) {
-      trailWatch = new IntersectionObserver(([e]) => bar.classList.toggle('stuck', !e.isIntersecting && e.boundingClientRect.top < 120), { rootMargin: '-110px 0px 0px 0px' });
+      trailWatch = new IntersectionObserver(([e]) => bar.classList.toggle('stuck', e.intersectionRatio < 1 && e.boundingClientRect.top < 160), { rootMargin: '-150px 0px 0px 0px', threshold: [0, 1] });
       trailWatch.observe(h1);
     }
 
     const prose = document.getElementById('prose');
     try {
-      const got = await fetchNote(t, path);
+      const [got] = await Promise.all([fetchNote(t, path), loadLessons()]);
       if (new URLSearchParams(location.search).get('n') !== path) return;
       const html = DOMPurify.sanitize(marked.parse(got.text, { gfm: true, headerIds: false, mangle: false }));
       const box = prepare(html, t, path);
@@ -1142,7 +1341,11 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       main.querySelector('article.note').setAttribute('dir', dir);
       prose.querySelectorAll(':scope > h2, :scope > h3, :scope > .table, :scope > .diagram, :scope > blockquote, :scope > pre, :scope > ul, :scope > ol').forEach((el) => el.classList.add('reveal'));
       V.reveal(prose);
+      // a line that has Arabic in it reads right to left, whatever word it starts with
+      if (dir === 'rtl') prose.querySelectorAll('p, li, h2, h3, h4, td, th').forEach((el) => { if (!el.closest('.diagram') && /[\u0600-\u06FF]/.test(el.textContent)) el.classList.add('ar'); });
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
+      { const tc = main.querySelector('.toc'); if (tc) tc.dataset.c = t.slug; }
+      readProgress();
       spy();
       // a star on every section, and one waiting for each diagram's toolbar
       const noteLang = got.en ? 'en' : 'mix';
@@ -1162,7 +1365,10 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       drawDiagrams(prose, t, path);
       // "#~s12" is section 12 of this note in whichever language is showing
       const sm = /^#~s(\d+)$/.exec(location.hash);
-      if (sm) { const h = prose.querySelector(`[data-j="${sm[1]}"]`); if (h) history.replaceState({}, '', `${location.search}#${encodeURIComponent(h.id)}`); }
+      if (sm) {
+        const h = prose.querySelector(`[data-j="${sm[1]}"]`) || prose.querySelector(`.lesson[data-jx~="${sm[1]}"]`);
+        if (h) { if (!h.id) h.id = 'lesson'; history.replaceState({}, '', `${location.search}#${encodeURIComponent(h.id)}`); }
+      }
       if (location.hash) settleHash(location.hash);
       // the note counts as read once its last part has been on screen
       if (readWatch) readWatch.disconnect();
@@ -1355,22 +1561,53 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     }
   }
 
-  let observer = null;
+  // how far down the note the reader is, shown in "On this page"
+  function readProgress() {
+    const pct = document.querySelector('.toc-pct');
+    if (!pct) return;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    const p = max > 0 ? Math.min(1, Math.max(0, scrollY / max)) : 0;
+    pct.textContent = `${Math.round(p * 100)}%`;
+  }
+  addEventListener('scroll', readProgress, { passive: true });
+  addEventListener('resize', readProgress);
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-copy]');
+    if (!b || !navigator.clipboard) return;
+    navigator.clipboard.writeText(b.closest('.code').querySelector('pre').textContent).then(() => {
+      b.classList.add('done'); b.querySelector('span').textContent = 'Copied';
+      setTimeout(() => { b.classList.remove('done'); b.querySelector('span').textContent = 'Copy'; }, 1600);
+    }).catch(() => {});
+  });
+
+  // which heading the reader is under: the last one that has passed the bar on top
+  let spyOn = null, spyTick = 0;
   function spy() {
-    if (observer) observer.disconnect();
+    if (spyOn) { removeEventListener('scroll', spyOn); spyOn = null; }
     const links = [...document.querySelectorAll('.toc a')];
-    if (!links.length || !('IntersectionObserver' in window)) return;
+    if (!links.length) return;
     const byId = new Map(links.map((a) => [decodeURIComponent(a.getAttribute('href').slice(1)), a]));
-    observer = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (en.isIntersecting) {
-          links.forEach((l) => l.classList.remove('on'));
-          const a = byId.get(en.target.id);
-          if (a) { a.classList.add('on'); a.scrollIntoView({ block: 'nearest' }); }
-        }
-      });
-    }, { rootMargin: '-80px 0px -70% 0px' });
-    document.querySelectorAll('.prose h2, .prose h3').forEach((h) => observer.observe(h));
+    const heads = [...document.querySelectorAll('.prose h2, .prose h3')].filter((h) => byId.has(h.id));
+    let cur = null;
+    const pick = () => {
+      spyTick = 0;
+      let h = null;
+      for (const x of heads) { if (x.getBoundingClientRect().top <= 150) h = x; else break; }
+      const a = h ? byId.get(h.id) : null;
+      if (a === cur) return;
+      cur = a;
+      links.forEach((l) => l.classList.remove('on'));
+      const g = a && a.closest('.tg');
+      document.querySelectorAll('.toc .tg.open').forEach((x) => { if (x !== g) x.classList.remove('open'); });
+      if (!a) return;
+      if (g) g.classList.add('open');
+      a.classList.add('on');
+      const box = a.closest('.toc'), r = a.getBoundingClientRect(), br = box.getBoundingClientRect();
+      if (r.top < br.top + 50 || r.bottom > br.bottom - 20) box.scrollTop += r.top - br.top - br.height / 2;
+    };
+    spyOn = () => { if (!spyTick) spyTick = requestAnimationFrame(pick); };
+    addEventListener('scroll', spyOn, { passive: true });
+    pick();
   }
 
   function renderMissing() {
