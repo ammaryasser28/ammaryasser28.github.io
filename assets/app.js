@@ -28,6 +28,8 @@
       </nav>`;
   const courseCrumb = (t) => ({ href: `?t=${t.slug}`, label: t.name, c: t.slug, num: DATA.tracks.indexOf(t) + 1 });
   const noteHref = (t, path) => `?t=${t.slug}&n=${encodeURIComponent(path)}`;
+  // an "Overview" note is named after its folder ("Transport Layer"), wherever the note is named on its own
+  const nameOf = (n) => (n && /^overview$/i.test(String(n.title).trim()) && n.sub && n.sub.length ? n.sub[n.sub.length - 1] : n.title);
   const flatNotes = (t) => t.sections.flatMap((s) => s.notes.map((n) => ({ ...n, section: s.name })));
   // the exact commit GitHub reported on this visit, so an edit shows at once (the branch name is cached for minutes)
   const refOf = (t) => t.ref || DATA.branch;
@@ -115,7 +117,7 @@
 
   function buildIndex() {
     INDEX = DATA.tracks.flatMap((t) => flatNotes(t).map((n) => ({
-      track: t, note: n, hay: [n.title, n.section, ...n.sub, t.name].join(' ').toLowerCase(),
+      track: t, note: n, hay: [nameOf(n), n.section, ...n.sub, t.name].join(' ').toLowerCase(),
     })));
   }
   // The headings inside every note, from each course repo's .site/search.json (written by its workflow on
@@ -840,12 +842,12 @@ ${trail([], '<code>whoami</code>')}
           <div class="panel-head"><span class="panel-ico">${ic('book')}</span><div><h2>${lastN ? 'Continue where you stopped' : 'Where to begin'}</h2><p>${lastN ? 'Your last note in this browser' : 'The note most analysts reach for first'}</p></div></div>
           <a class="continue-card" data-c="${next.t.slug}" href="${noteHref(next.t, next.n.path)}">
             <span class="cc-art">${V.courseArt(next.t.slug)}</span>
-            <span class="cc-text"><small>${esc(next.t.name)} / ${esc(next.n.section)}</small><b>${esc(next.n.title)}</b><span>${minutes(next.n.words)} min read</span></span>
+            <span class="cc-text"><small>${esc(next.t.name)} / ${esc(next.n.section)}</small><b>${esc(nameOf(next.n))}</b><span>${minutes(next.n.words)} min read</span></span>
             <span class="cc-go">${ic('chev')}</span>
           </a>
           ${(() => { const all = flatNotes(next.t); const k = all.findIndex((x) => x.path === next.n.path); const up = all.slice(k + 1, k + 4); return up.length ? `
           <p class="up-h">Up next in ${esc(next.t.name)}</p>
-          <ol class="up-next" data-c="${next.t.slug}">${up.map((u, j) => `<li><a href="${noteHref(next.t, u.path)}"${isRead(next.t, u.path) ? ' class="read"' : ''}><span class="idx">${String(k + j + 2).padStart(2, '0')}</span><span class="c-title">${esc(u.title)}</span><small>${minutes(u.words || 200)} min</small></a></li>`).join('')}</ol>` : ''; })()}
+          <ol class="up-next" data-c="${next.t.slug}">${up.map((u, j) => `<li><a href="${noteHref(next.t, u.path)}"${isRead(next.t, u.path) ? ' class="read"' : ''}><span class="idx">${String(k + j + 2).padStart(2, '0')}</span><span class="c-title">${esc(nameOf(u))}</span><small>${minutes(u.words || 200)} min</small></a></li>`).join('')}</ol>` : ''; })()}
         </div>
         <div class="panel reveal progress-panel" style="--d:1">
           <div class="panel-head"><span class="panel-ico">${ic('check')}</span><div><h2>Your progress</h2><p>${readTotal ? `${readTotal} of ${total} notes read` : 'Notes you finish are ticked off here'}</p></div><a class="panel-link" href="?courses">All courses${ic('chev')}</a></div>
@@ -1225,6 +1227,12 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
         if (h.tagName !== 'H2') { run[h.tagName] += 1; h.dataset.n = run[h.tagName]; h.classList.add('hn'); }
       });
     }
+    // a first section named exactly like the note would print the title twice; it reads as the overview
+    {
+      const n = flatNotes(t).find((x) => x.path === path), h = box.querySelector('h2');
+      const norm = (x) => String(x).toLowerCase().replace(/[\u2010-\u2015-]/g, '-').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+      if (n && h && h.firstChild && h.firstChild.nodeType === 3 && h.childNodes.length === 1 && norm(h.textContent) === norm(n.title) && !/^overview$/i.test(n.title.trim())) h.firstChild.nodeValue = 'Overview';
+    }
     // a table written only in English reads left to right, even inside an Arabic note
     box.querySelectorAll('table').forEach((tb) => { if (!/[\u0600-\u06FF]/.test(tb.textContent)) tb.setAttribute('dir', 'ltr'); });
     box.querySelectorAll('table').forEach((tb) => { const w = document.createElement('div'); w.className = 'table'; tb.replaceWith(w); w.appendChild(tb); });
@@ -1376,7 +1384,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     const all = flatNotes(t);
     const i = all.findIndex((n) => n.path === path);
     const n = all[i] || { title: path.split('/').pop().replace(/\.md$/i, ''), sub: [], section: '', words: 0 };
-    setTitle(n.title);
+    setTitle(nameOf(n));
     store.set('last', { t: t.slug, n: path });
     const gh = `https://github.com/${DATA.owner}/${t.repo}/blob/${DATA.branch}/${enc(path)}`;
     const read = isRead(t, path);
@@ -1386,11 +1394,11 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     main.innerHTML = `
     <div class="reader3">
       <article class="note" data-c="${t.slug}">
-        ${trail([courseCrumb(t), ...(topIdx >= 0 ? [{ href: `?t=${t.slug}#topic-${topIdx}`, label: tops[topIdx].name }] : [])], `<span dir="auto">${esc(n.title)}</span>`, `
+        ${trail([courseCrumb(t), ...(topIdx >= 0 ? [{ href: `?t=${t.slug}#topic-${topIdx}`, label: tops[topIdx].name }] : [])], `<span dir="auto">${esc(nameOf(n))}</span>`, `
         <span class="tr-pager">
-          ${i > 0 ? `<a href="${noteHref(t, all[i - 1].path)}" aria-label="Previous note: ${esc(all[i - 1].title)}" title="Previous: ${esc(all[i - 1].title)}">${ic('chev')}</a>` : `<span class="off">${ic('chev')}</span>`}
+          ${i > 0 ? `<a href="${noteHref(t, all[i - 1].path)}" aria-label="Previous note: ${esc(nameOf(all[i - 1]))}" title="Previous: ${esc(nameOf(all[i - 1]))}">${ic('chev')}</a>` : `<span class="off">${ic('chev')}</span>`}
           <b>${i + 1} / ${all.length}</b>
-          ${i >= 0 && i < all.length - 1 ? `<a class="nx" href="${noteHref(t, all[i + 1].path)}" aria-label="Next note: ${esc(all[i + 1].title)}" title="Next: ${esc(all[i + 1].title)}">${ic('chev')}</a>` : `<span class="off nx">${ic('chev')}</span>`}
+          ${i >= 0 && i < all.length - 1 ? `<a class="nx" href="${noteHref(t, all[i + 1].path)}" aria-label="Next note: ${esc(nameOf(all[i + 1]))}" title="Next: ${esc(nameOf(all[i + 1]))}">${ic('chev')}</a>` : `<span class="off nx">${ic('chev')}</span>`}
         </span>`, 'tr-note')}
         <header class="note-head">
           ${(() => {
@@ -1399,18 +1407,18 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
             const k = Math.max(0, tops[ti].notes.findIndex((m) => m.path === path));
             return V.noteMap(t.slug, tops.map((x) => ({ name: x.name, count: x.notes.length })), ti, k, (j) => `?t=${t.slug}#topic-${j}`);
           })()}
-          <h1>${esc(n.title)}</h1>
+          <h1>${esc(nameOf(n))}</h1>
           <div class="meta">
             <span id="read-chip" class="read-chip${read ? ' done' : ''}">${read ? 'Read' : `${minutes(n.words || 200)} min read`}</span>
-            ${starBtn({ kind: 'note', t: t.slug, n: path, title: n.title }, 'star-note', true)}
+            ${starBtn({ kind: 'note', t: t.slug, n: path, title: nameOf(n) }, 'star-note', true)}
             <span>Note ${i + 1} of ${all.length}</span>
             <span id="lang-chip">${LANG === 'en' ? 'English' : 'Arabic, with English terms'}</span>
           </div>
         </header>
         <div class="prose" id="prose"><div class="skeleton" role="status" aria-label="Loading the note"><i></i><i></i><i></i><i></i></div></div>
         <nav class="pager" aria-label="Previous and next note">
-          ${i > 0 ? `<a class="prev" href="${noteHref(t, all[i - 1].path)}"><small>Previous</small>${esc(all[i - 1].title)}</a>` : '<span></span>'}
-          ${i >= 0 && i < all.length - 1 ? `<a class="next" href="${noteHref(t, all[i + 1].path)}"><small>Next</small>${esc(all[i + 1].title)}</a>` : ''}
+          ${i > 0 ? `<a class="prev" href="${noteHref(t, all[i - 1].path)}"><small>Previous</small>${esc(nameOf(all[i - 1]))}</a>` : '<span></span>'}
+          ${i >= 0 && i < all.length - 1 ? `<a class="next" href="${noteHref(t, all[i + 1].path)}"><small>Next</small>${esc(nameOf(all[i + 1]))}</a>` : ''}
         </nav>
       </article>
       <div id="toc-slot"></div>
@@ -1462,7 +1470,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       prose.querySelectorAll('h2, h3, h4, figure.diagram').forEach((el) => {
         if (el.tagName === 'FIGURE') {
           dn += 1;
-          const title = lastH ? lastH.dataset.t : n.title;
+          const title = lastH ? lastH.dataset.t : nameOf(n);
           el.dataset.starE = JSON.stringify({ kind: 'dg', t: t.slug, n: path, d: dn, h: lastH ? +lastH.dataset.j : -1, title, lang: noteLang });
           return;
         }
