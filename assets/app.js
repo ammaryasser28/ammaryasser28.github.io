@@ -280,6 +280,16 @@
     if (curItem) curItem.scrollIntoView({ block: 'center' });
   }
   if (store.get('collapsed', false)) document.body.classList.add('nav-collapsed');
+  // "On this page" folds away to its icon, and the note takes the room; the choice is remembered
+  if (store.get('tocOff', false)) document.body.classList.add('toc-off');
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest && e.target.closest('[data-toc-toggle]');
+    if (!b) return;
+    const off = document.body.classList.toggle('toc-off');
+    store.set('tocOff', off);
+    b.setAttribute('aria-expanded', String(!off));
+    b.title = `${off ? 'Show' : 'Hide'} On this page`;
+  });
   const closeNav = () => document.body.classList.remove('nav-open');
   document.getElementById('menu').addEventListener('click', () => document.body.classList.toggle('nav-open'));
   document.getElementById('scrim').addEventListener('click', closeNav);
@@ -1339,7 +1349,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     const link = (h, cls, num) => `<a class="${cls}" href="#${encodeURIComponent(h.id)}">${num ? `<span class="tn">${num}</span>` : ''}<span class="tt">${esc(h.textContent.trim())}</span></a>`;
     return `
       <aside class="toc toc2" aria-label="On this page">
-        <div class="toc-head">${ic('c_list')}<h2>On this page</h2><b class="toc-pct">0%</b></div>
+        <div class="toc-head"><button class="toc-toggle" type="button" data-toc-toggle aria-expanded="${!document.body.classList.contains('toc-off')}" aria-label="Hide or show On this page" title="${document.body.classList.contains('toc-off') ? 'Show' : 'Hide'} On this page">${ic('c_list')}</button><h2>On this page</h2><b class="toc-pct">0%</b></div>
         <ol dir="${box.getAttribute('dir') || 'ltr'}">${groups.map((g) => `<li class="tg">${link(g.h, 'l2', g.num)}${g.subs.length ? `<ol class="ts">${g.subs.map((x) => `<li>${link(x, 'l3')}</li>`).join('')}</ol>` : ''}</li>`).join('')}</ol>
       </aside>`;
   }
