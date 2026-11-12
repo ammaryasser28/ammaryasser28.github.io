@@ -1377,3 +1377,17 @@ body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
   .cert-img::after { display: none; }
 }
 .who-ph > .avatar.xl { margin: 0; }
+
+/* whoami terminal: after the commands, a quiet tail of the alert log */
+.t-feed { position: relative; height: calc(3 * 1.75em); overflow: hidden; }
+.t-log { height: 1.75em; line-height: 1.75em; white-space: pre; overflow: hidden; text-overflow: ellipsis; color: #8796ad; animation: t-in .45s ease both; transition: opacity .45s, margin .45s; }
+.t-log.gone { opacity: 0; margin-top: -1.75em; }
+.t-log b { font-weight: 600; }
+.t-log .t-id { color: #c8d3e4; }
+.t-log .t-who { color: #6f7f97; }
+.t-info b { color: #7aa2ff; }
+.t-warn b { color: #f0b648; }
+.t-alert b { color: #ff7d68; }
+.t-alert .t-who { color: #c9d4e6; }
+@keyframes t-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .t-log { animation: none; } }
