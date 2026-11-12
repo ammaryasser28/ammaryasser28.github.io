@@ -727,7 +727,7 @@ ${trail([], '<code>whoami</code>')}
             <p class="tagline">Documenting everything I learn in blue team, so others can learn it faster.</p>
             <p class="bio">${total} notes across four security courses, from networking basics to SANS SEC450, each with interactive diagrams and a full English version.</p>
             <div class="actions">
-              <a class="btn primary" href="${noteHref(next.t, next.n.path)}">${ic('book')}${lastN ? 'Continue reading' : 'Start reading'}</a>
+              <a class="btn primary" href="?courses">${ic('layers')}Browse the courses</a>
               <a class="btn btn-who" href="?whoami" title="About the author">${ic('term')}<code>whoami</code></a>
             </div>
           </div>
