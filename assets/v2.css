@@ -1325,3 +1325,55 @@ body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
 .prose .lesson .ls-facts, .prose .lesson .ls-obj { text-align: left; }
 .prose .lesson .ls-obj .ls-label { justify-content: flex-start; }
 .prose .lesson .ls-obj .ls-label span, .prose .lesson .ls-facts dd { text-align: left; }
+
+/* sidebar: a course's notes as a folder tree */
+.tree-g { margin: 1px 0; }
+.tree-grp { display: flex; align-items: center; gap: 6px; width: calc(100% + 8px); margin-left: -8px; padding: 6px 8px; border: 0; border-radius: 7px; background: none; color: var(--ink); font: 600 13px/1.35 var(--font); text-align: left; cursor: pointer; transition: background .2s; }
+.tree-grp:hover { background: var(--paper); }
+.tree-grp > span { flex: 1; min-width: 0; }
+.tree-grp small { flex: none; font: 500 11px var(--mono); color: var(--muted); }
+.tree-grp .tg-chev { width: 13px; height: 13px; flex: none; color: var(--muted); transition: transform .2s; }
+.tree-g.open > .tree-grp .tg-chev { transform: rotate(90deg); }
+.tree-g.has-cur > .tree-grp { color: var(--ac, var(--cobalt)); }
+.tree-kids { display: none; margin: 1px 0 4px 6px; padding-left: 10px; border-left: 1px solid var(--rule); }
+.tree-g.open > .tree-kids { display: block; animation: tree-in .25s ease both; }
+.tree-grp .tg-chev { transform: rotate(180deg); }
+.tree-g.open > .tree-grp .tg-chev { transform: rotate(-90deg); }
+
+/* ===== whoami: motion ===== */
+/* a slow ring of light around the photo */
+.who-ph { position: relative; display: inline-grid; place-items: center; flex: none; }
+.who-ring { position: absolute; inset: -9px; border-radius: 50%; pointer-events: none; background: conic-gradient(from 0deg, transparent 0 55%, color-mix(in srgb, var(--cobalt) 85%, #fff) 72%, transparent 88%); -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); animation: who-spin 6s linear infinite; }
+@keyframes who-spin { to { transform: rotate(1turn); } }
+/* the name rises letter by letter */
+.who-text h1 span { display: inline-block; animation: who-rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(120ms + var(--i) * 38ms); }
+@keyframes who-rise { from { opacity: 0; transform: translateY(.45em); filter: blur(4px); } }
+/* chips arrive one after another once their panel is on screen */
+.who .reveal .chips li { opacity: 0; transform: translateY(6px) scale(.96); transition: opacity .35s ease, transform .35s cubic-bezier(.2,.7,.2,1), background .2s, border-color .2s; transition-delay: calc(150ms + var(--ci, 0) * 30ms); }
+.who .reveal.in .chips li { opacity: 1; transform: none; }
+.who .chips li:hover { border-color: var(--cobalt); transition-delay: 0s; }
+/* the timeline fills as you read down it */
+.tl::after { content: ""; position: absolute; left: 8px; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: linear-gradient(var(--cobalt), color-mix(in srgb, var(--cobalt) 60%, #7ee0ff)); transform-origin: top; transform: scaleY(var(--tl, 0)); box-shadow: 0 0 12px color-mix(in srgb, var(--cobalt) 60%, transparent); }
+.tl::before { background: var(--rule); }
+.tl > li::before { z-index: 1; transition: border-color .3s, background .3s, box-shadow .3s; }
+.tl > li.lit::before { border-color: var(--cobalt); }
+.tl > li.now::after { content: ""; position: absolute; left: -29px; top: 24px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--cobalt); animation: who-ping 2.4s ease-out infinite; pointer-events: none; }
+@keyframes who-ping { from { transform: scale(1); opacity: .8; } to { transform: scale(2.6); opacity: 0; } }
+/* a soft light under the pointer on each panel */
+.who .panel { background-image: radial-gradient(420px circle at var(--mx, -500px) var(--my, -500px), color-mix(in srgb, var(--cobalt) 9%, transparent), transparent 60%); transition: border-color .25s, transform .25s, box-shadow .25s; }
+.who .panel:hover { border-color: color-mix(in srgb, var(--cobalt) 35%, var(--rule)); }
+/* certificates lift, and a sheen passes over them */
+.certs > li { transition: transform .3s cubic-bezier(.2,.7,.2,1); }
+.certs > li:hover { transform: translateY(-4px); }
+.cert-img::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(115deg, transparent 35%, rgb(255 255 255 / .35) 50%, transparent 65%); transform: translateX(-120%); pointer-events: none; }
+.cert:hover .cert-img::after { transform: translateX(120%); transition: transform .9s ease; }
+/* section icons pop in */
+.who-head.reveal .panel-ico { transform: scale(.6) rotate(-12deg); opacity: 0; transition: transform .5s cubic-bezier(.3,1.6,.5,1) .1s, opacity .3s .1s; }
+.who-head.reveal.in .panel-ico { transform: none; opacity: 1; }
+@media (max-width: 640px) { .tl::after { left: 5px; } .tl > li.now::after { left: -26px; } }
+@media (prefers-reduced-motion: reduce) {
+  .who-ring, .who-text h1 span, .tl > li.now::after { animation: none; }
+  .who .reveal .chips li, .who-head.reveal .panel-ico { opacity: 1; transform: none; transition: none; }
+  .cert-img::after { display: none; }
+}
+.who-ph > .avatar.xl { margin: 0; }
