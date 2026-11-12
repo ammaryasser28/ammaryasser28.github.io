@@ -691,7 +691,27 @@ ${trail([], '<code>whoami</code>')}
     const lines = [['whoami', 'amr_yasser'], ['cat role.txt', 'SOC Analyst (Tier 1) · Cairo, Egypt'], ['ls skills/', 'siem/  log-analysis/  incident-response/\nactive-directory/  network-security/'], ['cat status.txt', 'open to SOC Analyst roles']];
     const prompt = '<span class="t-p">amr@blue-team</span><span class="t-c">:</span><span class="t-d">~</span><span class="t-c">$</span> ';
     const row = (cmd, out) => `<div class="t-row">${prompt}<span class="t-cmd">${esc(cmd)}</span></div>${out === null ? '' : `<div class="t-out">${esc(out)}</div>`}`;
-    const done = () => { term.innerHTML = `${lines.map(([c, o]) => row(c, o)).join('')}<div class="t-row">${prompt}<span class="t-caret"></span></div>`; };
+    // then it keeps watching: a quiet tail of the alert log, the way a SOC screen never stops
+    const feed = [['info', '4624', 'logon ok', 'jdoe @ WS-14'], ['warn', '4625', 'failed logon x6', 'admin @ DC-01'], ['alert', 'T1110', 'brute force', 'triaged, #1042'],
+      ['info', 'dns', 'query ok', 'updates.microsoft.com'], ['alert', 'T1557', 'arp spoofing', '10.0.0.23, contained'], ['info', '4688', 'powershell.exe', 'reviewed'],
+      ['warn', 'T1071', 'beaconing 60s', 'WS-07, escalated'], ['info', '4720', 'user created', 'approved change']];
+    const fl = (f) => `<div class="t-log t-${f[0]}"><b>${f[0].toUpperCase().padEnd(5)}</b> <span class="t-id">${esc(f[1].padEnd(5))}</span> ${esc(f[2].padEnd(15))} <span class="t-who">${esc(f[3])}</span></div>`;
+    const done = () => {
+      term.innerHTML = `${lines.map(([c, o]) => row(c, o)).join('')}<div class="t-row">${prompt}<span class="t-cmd">tail -f alerts.log</span></div><div class="t-feed" aria-hidden="true">${feed.slice(0, 3).map(fl).join('')}</div>`;
+      if (reduceMotion()) return;
+      const box = term.querySelector('.t-feed');
+      let n = 3;
+      const more = () => {
+        if (!box.isConnected) return;
+        box.insertAdjacentHTML('beforeend', fl(feed[n % feed.length]));
+        n++;
+        const first = box.firstElementChild;
+        first.classList.add('gone');
+        setTimeout(() => first.remove(), 450);
+        whoTimer = setTimeout(more, 2600);
+      };
+      whoTimer = setTimeout(more, 1800);
+    };
     if (reduceMotion()) done();
     else {
       let li = 0, ci = 0;
