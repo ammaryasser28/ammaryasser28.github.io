@@ -76,13 +76,13 @@
   // the title of a starred section in the language being read, when the headings index has it
   const starTitle = (e) => {
     if (e.kind === 'note') return e.title;
-    const cur = LANG === 'en' ? 'en' : 'mix';
+    const cur = LANG === 'en' ? 'en' : 'mix', title = cleanHead(e.title);
     const lists = HEADS.get(`${e.t}|${e.n}`);
     if (e.lang !== cur && lists && lists[e.lang] && lists[cur]) {
-      const i = lists[e.lang].indexOf(e.title);
+      const i = lists[e.lang].indexOf(title);
       if (i >= 0 && lists[cur][i]) return lists[cur][i];
     }
-    return e.title;
+    return title;
   };
   document.addEventListener('click', (ev) => {
     const b = ev.target.closest('[data-star]');
@@ -121,10 +121,13 @@
   // The headings inside every note, from each course repo's .site/search.json (written by its workflow on
   // every push), so a search finds sections too. Loaded the first time someone searches.
   const HEADS = new Map();
+  // a heading's own number ("1. ", "4.1 ", "7 - ") is dropped: the site numbers sections itself
+  const HNUM = /^\s*(\d+(?:\.\d+)*\.\s+|\d+(?:\.\d+)+\s+|\d+\s+[-–—]\s+)/;
+  const cleanHead = (s) => String(s).replace(HNUM, '');
   let headsLoading = null;
   function loadHeads() {
     if (headsLoading || !DATA) return headsLoading;
-    const take = (j) => { Object.entries(j || {}).forEach(([k, v]) => { if (!HEADS.has(k)) HEADS.set(k, v); }); };
+    const take = (j) => { Object.entries(j || {}).forEach(([k, v]) => { if (HEADS.has(k) || !v) return; const c = (a) => (Array.isArray(a) ? a.map(cleanHead) : a); HEADS.set(k, Array.isArray(v) ? c(v) : { ...v, mix: c(v.mix), en: c(v.en) }); }); };
     const get = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
     headsLoading = Promise.all(DATA.tracks.map((t) => get(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/search.json`).then(take)))
       .then(() => get('diagrams/search.json').then(take));
@@ -1200,6 +1203,20 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       }
     });
     lessonCard(box, t, path);
+    // headings lose the number typed into the note; sub-headings that were numbered get a small
+    // index of their own, counted in order under their section, so the two can never disagree
+    {
+      const run = { H3: 0, H4: 0 };
+      box.querySelectorAll('h2, h3, h4').forEach((h) => {
+        if (h.tagName === 'H2') { run.H3 = 0; run.H4 = 0; } else if (h.tagName === 'H3') run.H4 = 0;
+        const tn = h.firstChild;
+        if (!tn || tn.nodeType !== 3 || !HNUM.test(tn.nodeValue)) return;
+        tn.nodeValue = tn.nodeValue.replace(HNUM, '');
+        if (h.tagName !== 'H2') { run[h.tagName] += 1; h.dataset.n = run[h.tagName]; h.classList.add('hn'); }
+      });
+    }
+    // a table written only in English reads left to right, even inside an Arabic note
+    box.querySelectorAll('table').forEach((tb) => { if (!/[\u0600-\u06FF]/.test(tb.textContent)) tb.setAttribute('dir', 'ltr'); });
     box.querySelectorAll('table').forEach((tb) => { const w = document.createElement('div'); w.className = 'table'; tb.replaceWith(w); w.appendChild(tb); });
     // a "**bold**" the Markdown parser left as text (it does that next to Arabic punctuation)
     {
