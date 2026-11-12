@@ -770,6 +770,7 @@ ${trail([], '<code>whoami</code>')}
     // a little life on the page: chips arrive one after another, the timeline fills as you read it,
     // and panels catch a soft light under the pointer
     main.querySelectorAll('.who .chips').forEach((ul) => [...ul.children].forEach((li, k) => li.style.setProperty('--ci', k)));
+    main.querySelectorAll('.who .panel ul:not(.chips)').forEach((ul) => [...ul.children].forEach((li, k) => li.style.setProperty('--ci', k)));
     const tl = main.querySelector('.tl');
     if (whoScroll) removeEventListener('scroll', whoScroll);
     whoScroll = null;
