@@ -1408,3 +1408,9 @@ body.toc-off .reader3 .toc.toc2 { padding: 7px; overflow: hidden; }
 body.toc-off .toc2 .toc-head { margin: 0; padding: 0; border: 0; }
 body.toc-off .toc2 :is(.toc-head h2, .toc-pct, ol) { display: none; }
 body.toc-off .toc2 .toc-toggle { margin: 0; color: var(--ac, var(--cobalt)); }
+
+/* timeline: the line and every dot share one centre, worked out from the same two numbers */
+.tl { --tl-pad: 30px; --tl-x: 9px; padding-left: var(--tl-pad); }
+.tl::before, .tl::after { left: calc(var(--tl-x) - 1px); width: 2px; }
+.tl > li::before, .tl > li.now::after { box-sizing: border-box; width: 12px; height: 12px; left: calc(var(--tl-x) - var(--tl-pad) - 6px); }
+@media (max-width: 640px) { .tl { --tl-pad: 24px; --tl-x: 6px; } }
