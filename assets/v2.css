@@ -1397,3 +1397,14 @@ body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
 .prose .analogy > :is(h3, h4).hn::before { display: none; }
 .prose table[dir="ltr"] { text-align: left; }
 .prose table[dir="ltr"] :is(th, td) { text-align: left; }
+
+/* "On this page" folds to its icon; the note widens into the room */
+.reader3 { transition: grid-template-columns .35s cubic-bezier(.2,.7,.2,1); }
+.toc2 .toc-toggle { display: grid; place-items: center; width: 30px; height: 30px; margin: -6px -4px -6px -6px; padding: 0; border: 0; border-radius: 8px; background: none; color: inherit; cursor: pointer; transition: background .2s, color .2s; }
+.toc2 .toc-toggle:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink); }
+.toc2 .toc-toggle .i { width: 17px; height: 17px; }
+body.toc-off .reader3 { grid-template-columns: minmax(0, 1fr) 46px; }
+body.toc-off .reader3 .toc.toc2 { padding: 7px; overflow: hidden; }
+body.toc-off .toc2 .toc-head { margin: 0; padding: 0; border: 0; }
+body.toc-off .toc2 :is(.toc-head h2, .toc-pct, ol) { display: none; }
+body.toc-off .toc2 .toc-toggle { margin: 0; color: var(--ac, var(--cobalt)); }
