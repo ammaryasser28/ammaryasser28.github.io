@@ -1209,7 +1209,7 @@ body.nav-collapsed .collapse {
 body.nav-collapsed .collapse:hover { border-color: var(--accent, #7aa2ff); }
 
 /* ===== reading view: the note as a designed lesson, not a rendered file ===== */
-.prose[dir="rtl"] :is(p, li, h1, h2, h3, h4, td, th).ar { unicode-bidi: isolate; }
+.prose[dir="rtl"] :is(p, li, h1, h2, h3, h4, td, th).rtl-line { unicode-bidi: isolate; }
 .prose p, .prose li { line-height: 1.9; }
 .prose li { margin: 3px 0; }
 .prose ul > li::marker { color: var(--ac, var(--marker)); }
