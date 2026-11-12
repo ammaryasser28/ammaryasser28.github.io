@@ -1460,7 +1460,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       prose.querySelectorAll(':scope > h2, :scope > h3, :scope > .table, :scope > .diagram, :scope > blockquote, :scope > pre, :scope > ul, :scope > ol').forEach((el) => el.classList.add('reveal'));
       V.reveal(prose);
       // a line that has Arabic in it reads right to left, whatever word it starts with
-      if (dir === 'rtl') prose.querySelectorAll('p, li, h2, h3, h4, td, th').forEach((el) => { if (!el.closest('.diagram') && /[\u0600-\u06FF]/.test(el.textContent)) el.classList.add('ar'); });
+      if (dir === 'rtl') prose.querySelectorAll('p, li, h2, h3, h4, td, th').forEach((el) => { if (!el.closest('.diagram') && /[\u0600-\u06FF]/.test(el.textContent)) el.classList.add('rtl-line'); });
       document.getElementById('toc-slot').outerHTML = tocFrom(prose);
       { const tc = main.querySelector('.toc'); if (tc) tc.dataset.c = t.slug; }
       readProgress();
@@ -1818,6 +1818,8 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       // wait briefly so the first screen is already up to date; a slow API never holds the page
       const inTime = await Promise.race([Promise.all([live, meta]).then(() => true), new Promise((r) => setTimeout(() => r(false), 1500))]);
       buildIndex();
+      const q0 = new URLSearchParams(location.search), t0 = q0.get('t') && trackBy(q0.get('t'));
+      const wasKnown = !!(t0 && flatNotes(t0).some((x) => x.path === q0.get('n')));
       route();
       if (inTime) return;
       const res = await live;
@@ -1825,7 +1827,9 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       buildIndex();
       renderNav();
       const p = new URLSearchParams(location.search);
-      if (!p.get('n') && !location.hash) route(true); // a note being read is never redrawn under the reader
+      // a note being read is never redrawn under the reader, unless it is new and the first screen didn't know it yet
+      const known = (q) => { const t = q.get('t') && trackBy(q.get('t')); return !!(t && flatNotes(t).some((x) => x.path === q.get('n'))); };
+      if ((!p.get('n') && !location.hash) || (p.get('n') && !wasKnown && known(p))) route(true);
     })
     .catch(() => {
       main.innerHTML = `<div class="page"><div class="state"><h1>The notes index didn't load</h1>
