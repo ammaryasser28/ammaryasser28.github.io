@@ -45,6 +45,20 @@ def pretty(name, is_file=True):
                     for i, w in enumerate(words))
 
 
+def topic_of(text):
+    """The Topic cell of the info table at the top of a note, if there is one."""
+    lines = text.lstrip("\ufeff").splitlines()[:12]
+    for i, line in enumerate(lines):
+        if line.lstrip().startswith("|") and i + 2 < len(lines):
+            heads = [c.strip().lower() for c in line.strip().strip("|").split("|")]
+            vals = [c.strip() for c in lines[i + 2].strip().strip("|").split("|")]
+            if "topic" in heads and len(vals) == len(heads):
+                v = re.sub(r"[*_`]", "", vals[heads.index("topic")]).strip()
+                return v or None
+            return None
+    return None
+
+
 ARABIC = re.compile(r"[؀-ۿ]")
 WORD = re.compile(r"\S+")
 
@@ -70,6 +84,10 @@ for t in TRACKS:
             words = len(WORD.findall(text))
             parts = rel.split("/")
             title = pretty(parts[-1])
+            # a dashed file name ("log4shell-case-study.md") can't carry capitals or punctuation,
+            # so the note's own Topic cell names it when it has one
+            if "-" in parts[-1] and " " not in parts[-1].strip():
+                title = topic_of(text) or title
             sub = [pretty(p, False) for p in parts[1:-1]]
             note = {"path": rel, "title": title, "sub": sub, "words": words}
             if len(parts) == 1:
