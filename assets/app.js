@@ -116,6 +116,7 @@
   }
 
   function buildIndex() {
+    TITLES = null;
     INDEX = DATA.tracks.flatMap((t) => flatNotes(t).map((n) => ({
       track: t, note: n, hay: [nameOf(n), n.section, ...n.sub, t.name].join(' ').toLowerCase(),
     })));
@@ -1080,18 +1081,30 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   let LESSONS = {};
   let lessonsP = null;
   const loadLessons = () => lessonsP || (lessonsP = fetch('data/lessons.json', { cache: 'no-cache' }).then((r) => (r.ok ? r.json() : {})).then((d) => { LESSONS = d || {}; }).catch(() => {}));
-  // note titles named in a prerequisite become links to those notes
+  // note titles named in a prerequisite become links to those notes. A title is matched however it is
+  // written: "&" or "and", with or without the commas ("Router & Switch Attacks" = "Router and Switch Attacks")
   let TITLES = null;
+  const titlePattern = (k) => k.split(/\s+/).map((w, i, all) => (w === '&' || /^and$/i.test(w) ? '(?:&|and)'
+    : `${w.replace(/,$/, '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}${i < all.length - 1 ? ',?' : ''}`)).join('\\s+');
   function linkTitles(html, t) {
     if (!TITLES) {
-      const seen = new Map();
+      const by = new Map();
       // an "Overview" note goes by its folder's name ("OSI Model", "Transport Layer")
       DATA.tracks.forEach((tr) => flatNotes(tr).forEach((n) => {
-        const k = /^overview$/i.test(n.title.trim()) && n.path.includes('/') ? n.path.split('/').slice(-2, -1)[0] : n.title.trim();
-        seen.set(k, seen.has(k) ? null : { tr, n });
+        const k = (/^overview$/i.test(n.title.trim()) && n.path.includes('/') ? n.path.split('/').slice(-2, -1)[0] : n.title).trim();
+        const nk = k.toLowerCase().replace(/\s*&\s*/g, ' and ').replace(/,/g, '').replace(/\s+/g, ' ');
+        if (!by.has(nk)) by.set(nk, { k, list: [] });
+        by.get(nk).list.push({ tr, n });
       }));
-      TITLES = [...seen].filter(([k, v]) => v && k.length > 4).sort((a, b) => b[0].length - a[0].length);
+      // short names count only when they are acronyms ("HMAC", "DMZ"), so a plain word never turns into a link
+      TITLES = [...by.values()].filter(({ k }) => k.length > 4 || /^[A-Z][A-Z0-9]{2,}$/.test(k))
+        .map(({ k, list }) => ({ k, list, re: k.length > 4
+          ? new RegExp(`(?<![\\w&])${titlePattern(k)}(?![\\w&])`)
+          // an acronym links only as a whole item of the list ("HMAC"), never inside "TCP/IP" or "how DNS works"
+          : new RegExp(`(?<=^|,\\s*)${titlePattern(k)}(?=\\s*(?:,|$))`) }));
     }
+    // a title used in two courses ("Understanding DNS") means the one in this note's own course
+    const pick = (list) => list.find((x) => x.tr === t) || (list.length === 1 ? list[0] : null);
     const box = document.createElement('div'); box.innerHTML = html;
     const tw = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), nodes = [];
     while (tw.nextNode()) if (!tw.currentNode.parentElement.closest('a')) nodes.push(tw.currentNode);
@@ -1099,15 +1112,17 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       let txt = nd.nodeValue; const parts = [];
       for (;;) {
         let best = null;
-        for (const [k, v] of TITLES) {
-          const i = txt.indexOf(k);
-          if (i < 0 || /\w/.test(txt[i - 1] || '') || /\w/.test(txt[i + k.length] || '')) continue;
-          if (!best || i < best.i || (i === best.i && k.length > best.k.length)) best = { i, k, v };
+        for (const e of TITLES) {
+          const m = e.re.exec(txt);
+          if (!m) continue;
+          const v = pick(e.list);
+          if (!v) continue;
+          if (!best || m.index < best.i || (m.index === best.i && m[0].length > best.s.length)) best = { i: m.index, s: m[0], v };
         }
         if (!best) break;
         parts.push(document.createTextNode(txt.slice(0, best.i)));
-        const a = document.createElement('a'); a.href = noteHref(best.v.tr, best.v.n.path); a.textContent = best.k; parts.push(a);
-        txt = txt.slice(best.i + best.k.length);
+        const a = document.createElement('a'); a.href = noteHref(best.v.tr, best.v.n.path); a.textContent = best.s; parts.push(a);
+        txt = txt.slice(best.i + best.s.length);
       }
       if (!parts.length) return;
       parts.push(document.createTextNode(txt));
@@ -1763,6 +1778,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   }
   function fromTree(t, tree) {
     const known = new Map(flatNotes(t).map((n) => [n.path, n.words]));
+    const named = new Map(flatNotes(t).map((n) => [n.path, n.title]));
     const files = tree
       .filter((x) => x.type === 'blob' && /\.md$/i.test(x.path) && x.path.split('/').pop().toLowerCase() !== 'readme.md'
         && !x.path.split('/').slice(0, -1).some((d) => d.startsWith('.')))
@@ -1772,7 +1788,7 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     files.forEach((f) => {
       const parts = f.path.split('/');
       const note = {
-        path: f.path, title: pretty(parts[parts.length - 1]), sub: parts.slice(1, -1).map((p) => pretty(p, false)),
+        path: f.path, title: named.get(f.path) || pretty(parts[parts.length - 1]), sub: parts.slice(1, -1).map((p) => pretty(p, false)),
         words: known.has(f.path) ? known.get(f.path) : Math.max(1, Math.round((f.size || 0) / 6)),
       };
       if (parts.length === 1) { loose.push(note); return; }
@@ -1784,6 +1800,15 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     if (loose.length) sections.push({ name: 'More topics', notes: loose });
     const all = sections.flatMap((s) => s.notes);
     return { sections, count: all.length, words: all.reduce((a, n) => a + n.words, 0) };
+  }
+  // the Topic cell of the info table at the top of a note (tools/manifest.py reads it the same way)
+  function topicOf(md) {
+    const ls = String(md).replace(/^\ufeff/, '').split('\n').slice(0, 12);
+    const i = ls.findIndex((l) => l.trim().startsWith('|'));
+    if (i < 0 || i + 2 >= ls.length) return '';
+    const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
+    const hs = cells(ls[i]).map((c) => c.toLowerCase()), vs = cells(ls[i + 2]);
+    return hs.includes('topic') && vs.length === hs.length ? vs[hs.indexOf('topic')].replace(/[*_`]/g, '').trim() : '';
   }
   async function liveTrack(t) {
     const r = await fetch(`${API}/${DATA.owner}/${t.repo}/commits/${DATA.branch}`, { headers: { Accept: 'application/vnd.github.sha' } });
@@ -1798,6 +1823,11 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     if (tree.truncated || !Array.isArray(tree.tree)) return false;
     const next = fromTree(t, tree.tree);
     if (!next.count) return false;
+    // a new dashed file name ("log4shell-case-study.md") is named by its Topic cell, as the manifest does
+    const had = new Set(flatNotes(t).map((n) => n.path));
+    await Promise.all(next.sections.flatMap((x) => x.notes).filter((n) => !had.has(n.path) && /-/.test(n.path.split('/').pop()) && !/\s/.test(n.path.split('/').pop()))
+      .map((n) => fetch(`${RAW}/${DATA.owner}/${t.repo}/${sha}/${n.path.split('/').map(encodeURIComponent).join('/')}`).then((r) => (r.ok ? r.text() : ''))
+        .then((md) => { const v = topicOf(md); if (v) n.title = v; }).catch(() => {})));
     const changed = JSON.stringify(next.sections) !== JSON.stringify(t.sections);
     Object.assign(t, next);
     return changed;
