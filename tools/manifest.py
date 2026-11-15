@@ -109,3 +109,16 @@ with open(OUT, "w", encoding="utf-8") as fh:
 for t in data["tracks"]:
     print(t["slug"], t["count"], t["words"], [s["name"] for s in t["sections"]])
 print("bytes", os.path.getsize(OUT))
+
+# The page's own note count (search box and link preview) follows the notes, so nobody edits it by hand
+total = sum(t["count"] for t in data["tracks"])
+page = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(OUT))), "index.html")
+if os.path.exists(page):
+    with open(page, encoding="utf-8") as fh:
+        html = fh.read()
+    new = re.sub(r"Search \d+ notes", f"Search {total} notes", html)
+    new = re.sub(r'content="\d+ cybersecurity study notes', f'content="{total} cybersecurity study notes', new)
+    if new != html:
+        with open(page, "w", encoding="utf-8") as fh:
+            fh.write(new)
+        print("index.html notes", total)
