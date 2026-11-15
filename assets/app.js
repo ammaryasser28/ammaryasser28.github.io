@@ -120,6 +120,9 @@
     INDEX = DATA.tracks.flatMap((t) => flatNotes(t).map((n) => ({
       track: t, note: n, hay: [nameOf(n), n.section, ...n.sub, t.name].join(' ').toLowerCase(),
     })));
+    // the search box counts the notes there are now, not the ones there were when the page was written
+    const q = document.getElementById('q');
+    if (q) q.placeholder = q.placeholder.replace(/\d+ notes/, `${INDEX.length} notes`);
   }
   // The headings inside every note, from each course repo's .site/search.json (written by its workflow on
   // every push), so a search finds sections too. Loaded the first time someone searches.
