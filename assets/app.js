@@ -1386,12 +1386,22 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   async function fetchNote(t, path) {
     const k = `${LANG}:${t.repo}@${refOf(t)}/${path}`;
     if (noteCache.has(k)) return noteCache.get(k);
+    // a file pushed a moment ago can be missing from GitHub's file servers for a short while,
+    // so a miss is tried again on the branch, and the note itself once more after a pause
+    const get = async (p, tries) => {
+      for (const [ref, wait] of tries) {
+        if (wait) await new Promise((ok) => setTimeout(ok, wait));
+        const r = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${ref}/${p}`).catch(() => null);
+        if (r && r.ok) return r;
+      }
+      return null;
+    };
     if (LANG === 'en') {
-      const r = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/.site/en/${h36(`${t.slug}|${path}`)}.md`).catch(() => null);
-      if (r && r.ok) { const got = { text: await r.text(), en: true }; noteCache.set(k, got); return got; }
+      const r = await get(`.site/en/${h36(`${t.slug}|${path}`)}.md`, [[refOf(t), 0], [DATA.branch, 0]]);
+      if (r) { const got = { text: await r.text(), en: true }; noteCache.set(k, got); return got; }
     }
-    const res = await fetch(`${RAW}/${DATA.owner}/${t.repo}/${refOf(t)}/${enc(path)}`);
-    if (!res.ok) throw new Error(String(res.status));
+    const res = await get(enc(path), [[refOf(t), 0], [DATA.branch, 0], [refOf(t), 2500]]);
+    if (!res) throw new Error('not found');
     const got = { text: await res.text(), en: false };
     noteCache.set(k, got);
     return got;
@@ -1402,7 +1412,8 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
   async function renderNote(t, path) {
     const all = flatNotes(t);
     const i = all.findIndex((n) => n.path === path);
-    const n = all[i] || { title: path.split('/').pop().replace(/\.md$/i, ''), sub: [], section: '', words: 0 };
+    // a note the index doesn't know yet (pushed a moment ago) still gets a readable name, never its file name
+    const n = all[i] || { title: pretty(path.split('/').pop()), sub: [], section: '', words: 0 };
     setTitle(nameOf(n));
     store.set('last', { t: t.slug, n: path });
     const gh = `https://github.com/${DATA.owner}/${t.repo}/blob/${DATA.branch}/${enc(path)}`;
@@ -1466,6 +1477,10 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
     try {
       const [got] = await Promise.all([fetchNote(t, path), loadLessons()]);
       if (new URLSearchParams(location.search).get('n') !== path) return;
+      if (i < 0) {
+        const v = topicOf(got.text);
+        if (v) { n.title = v; setTitle(v); main.querySelectorAll('.note-head h1, .tr-note span[dir="auto"]').forEach((el) => { el.textContent = v; }); }
+      }
       const html = DOMPurify.sanitize(marked.parse(got.text, { gfm: true, headerIds: false, mangle: false }));
       const box = prepare(html, t, path);
       document.getElementById('lang-chip').textContent = got.en ? 'English' : 'Arabic, with English terms';
