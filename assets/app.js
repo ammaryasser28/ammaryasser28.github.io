@@ -1870,6 +1870,8 @@ ${trail([{ href: '?courses', label: 'Courses' }], esc(t.name))}
       const wasKnown = !!(t0 && flatNotes(t0).some((x) => x.path === q0.get('n')));
       route();
       if (inTime) return;
+      // the real diagram count can arrive after the first screen: redraw a page that shows it (home, whoami)
+      meta.then(() => { const p = new URLSearchParams(location.search); if (!p.get('n') && !location.hash) route(true); });
       const res = await live;
       if (!res.some((x) => x.status === 'fulfilled' && x.value)) return;
       buildIndex();
